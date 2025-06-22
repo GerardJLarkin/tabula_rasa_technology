@@ -28,10 +28,10 @@ ref_patoms = [np.load(os.path.join(reference, fname), allow_pickle=True) for fna
 print('reference loaded')
 
 ref_ids = [i[0,0] for i in ref_patoms]
-vrllut_keys = [i[0]+i[1] for i in product(ref_ids, repeat=2)]
+vrlp_keys = [i[0]+i[1] for i in product(ref_ids, repeat=2)]
 # vrllut: ref_patom_id, following ref patom_id, frequency of second ref_patom _id follows first
 # key: (ref_patom_id, following_ref_patom_id) value: frequency
-vrllut = dict.fromkeys(vrllut_keys, 0) # 61.5MB to start
+vrlp = dict.fromkeys(vrlp_keys, 0) # 61.5MB to start
 
 # use the same input dataset as per the compartor CNN-LSTM model
 data = np.load('mnist_test_seq.npy')
@@ -41,9 +41,7 @@ sequence = np.swapaxes(data, 0, 1)
 sequence = sequence[:100, ...]
 print('sequence loaded')
 
-#_matchtype = Tuple[Tuple[str, str], Tuple[float, float]]
-#_matchtype = Tuple[str, str]
-# compare historic patom against referenence patom
+# compare historic patom against reference patom
 def find_best_matches(
     arrays: List[np.ndarray],
     references: List[np.ndarray],
@@ -61,8 +59,9 @@ def find_best_matches(
         matches.add(best_ref)
     return matches
 
+st = perf_counter()
 seq_ind = 0
-for ix in range(0,10,1):
+for ix in range(0,100,1):
     s = perf_counter()
     seq = sequence[ix]
     prev = None
@@ -72,16 +71,18 @@ for ix in range(0,10,1):
         best_matches = find_best_matches(seq_out_patoms, ref_patoms, ref_compare)
         if prev is not None:
             successive_matches = [i[0]+i[1] for i in product(prev, best_matches)]
-            for k in vrllut:
+            for k in vrlp:
                 for i in successive_matches:
-                    vrllut[i] += 0.0000001
+                    vrlp[i] += 0.0000001
         prev = best_matches
     e = perf_counter()
     print('seq_num:', ix, 'time taken (mins):', round((e-s)/60,4) )
 
-print(sys.getsizeof(vrllut)) # 
-with open('vrllut.pkl', 'wb') as f:
-    pickle.dump(vrllut, f)
+en = perf_counter()
+print('Time taken for 100 seqs (mins):', round((en-st)/60,4))
+print(sys.getsizeof(vrlp)) # 
+with open('vrlp.pkl', 'wb') as f:
+    pickle.dump(vrlp, f)
 
 # # with open(root+'vrllut.pkl', 'rb') as f:
 # #     vrllut_dict = pickle.load(f)
