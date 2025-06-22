@@ -1,0 +1,157 @@
+import os
+import numpy as np
+from itertools import combinations
+from multiprocessing import Pool
+
+# 1. Optimized compare
+def compare_optimized(a: np.ndarray, b: np.ndarray):
+    m, n = a.shape[0], b.shape[0]
+    # Handle empty segments as maximally dissimilar
+    if m == 0 or n == 0:
+        return [int(a[0,0]) if m else None,
+                int(b[0,0]) if n else None,
+                np.inf]
+
+    sum_ax, sum_ay = a[:,3].sum(), a[:,4].sum()
+    sum_bx, sum_by = b[:,3].sum(), b[:,4].sum()
+
+    dx_total = sum_bx * m - sum_ax * n
+    dy_total = sum_by * m - sum_ay * n
+    position_similarity = np.hypot(dx_total, dy_total) / (m * n)
+
+    colour_similarity = abs(a[:,5].sum() * n - b[:,5].sum() * m) / (m * n)
+
+    pixel_fill_similarity = abs(m - n) / ((m + n) / 2)
+
+    score = 0.4 * position_similarity + \
+            0.2 * colour_similarity + \
+            0.4 * pixel_fill_similarity
+
+    return [int(a[0,0]), int(b[0,0]), score]
+
+
+# 2. Union-Find for grouping
+class UnionFind:
+    def __init__(self):
+        self.parent = {}
+    def find(self, x):
+        if self.parent.setdefault(x, x) != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+    def union(self, x, y):
+        rx, ry = self.find(x), self.find(y)
+        if rx != ry:
+            self.parent[ry] = rx
+
+
+# 3. Load all patoms into memory once
+def load_patoms(dirpath):
+    patoms = {}
+    for fname in os.listdir(dirpath):
+        if not fname.endswith('.npy'):
+            continue
+        arr = np.load(os.path.join(dirpath, fname))
+        patom_id = int(arr[0,0])
+        patoms[patom_id] = arr
+    return patoms
+
+
+# 4. Find all similar pairs in one batched starmap
+def find_similar_pairs(patoms, threshold, n_procs=None):
+    ids = list(patoms.keys())
+    arrays = [patoms[i] for i in ids]
+
+    # Build all index‐pairs
+    idx_pairs = [(i, j) for i in range(len(ids)) for j in range(i+1, len(ids))]
+
+    # Map back to actual data and compare
+    with Pool(processes=n_procs) as pool:
+        tasks = ((arrays[i], arrays[j]) for i,j in idx_pairs)
+        results = pool.starmap(compare_optimized, tasks, chunksize=500)
+
+    # Filter by threshold
+    return [(one, two) for one, two, score in results if score < threshold]
+
+
+# 5. Group via Union-Find
+def group_ids(pairs):
+    uf = UnionFind()
+    for a, b in pairs:
+        uf.union(a, b)
+    groups = {}
+    for node in uf.parent:
+        root = uf.find(node)
+        groups.setdefault(root, []).append(node)
+    return list(groups.values())
+
+
+# 6. Build reference patoms with vectorized stats
+def build_reference_patoms(patoms, groups):
+    refs = {}
+    for grp in groups:
+        # Stack all arrays in this group
+        data = np.vstack([patoms[i] for i in grp])
+        # Compute mean & median across rows
+        means   = np.mean(data,   axis=0)
+        medians = np.median(data, axis=0)
+        refs[grp[0]] = {'mean': means, 'median': medians}
+    return refs
+
+
+# 7. Main orchestration
+def main():
+    datadir      = '/path/to/your/patoms'
+    sim_threshold = 0.3
+    patoms       = load_patoms(datadir)
+    pairs        = find_similar_pairs(patoms, sim_threshold, n_procs=8)
+    groups       = group_ids(pairs)
+    references   = build_reference_patoms(patoms, groups)
+
+    # (Save or return `references` as you need)
+    print(f"Found {len(groups)} groups, built {len(references)} reference patoms.")
+
+if __name__ == '__main__':
+    main()
+
+
+
+import os
+import numpy as np
+
+def compute_reference_for_group(group_arrays):
+    """
+    Your original reference‐patom logic goes here,
+    e.g. looping over columns to pick means, medians, modes, etc.
+    Must return a NumPy array `ref_array` of shape (…,7).
+    """
+    # … your existing implementation …
+    return ref_array
+
+
+def write_reference_patoms(patoms, groups, out_dir):
+    """
+    For each connected group of patom IDs:
+      1. Gather their arrays in memory (you already have `patoms` dict).
+      2. Compute your reference array with the original method.
+      3. Save that single reference array to disk with np.save.
+      4. Delete the array to free memory before next group.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+
+    for grp in groups:
+        # 1. load the group's arrays (already in memory)
+        group_arrays = [patoms[i] for i in grp]
+
+        # 2. compute reference using your original code
+        ref_array = compute_reference_for_group(group_arrays)
+
+        # 3. save to disk
+        #    e.g. use the first patom ID as filename
+        fname = f"ref_patoms_{grp[0]}.npy"
+        path  = os.path.join(out_dir, fname)
+        np.save(path, ref_array)
+
+        # 4. free memory
+        del group_arrays, ref_array
+
+    print(f"Wrote {len(groups)} reference files to {out_dir}")
