@@ -32,6 +32,26 @@ MANIFEST
 *.manifest
 *.spec
 
+# Ignore numpy files
+*.npy
+
+# Ignore pickle files
+*.pkl
+
+# Ignore bin files
+*.bin
+
+# Ignore pdf files
+*.pdf
+
+# Ignore document files
+*.odt
+*.ods
+*.odg
+*.png
+*.gif
+*.jpg
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
