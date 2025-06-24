@@ -48,25 +48,6 @@ with Pool(processes=4) as pool:
 
     similar_patoms = [(one, two) for one, two, score in results if score < sim_threshold]
 
-# def pairwise_comparisons(folder, compare_fn, sim_threshold=0.3):
-#     file_paths = sorted([f for f in os.listdir(folder) if f.endswith('.npy')])
-#     seen = {}
-
-#     for i, f1 in enumerate(file_paths):
-#         a = np.load(os.path.join(folder, f1), allow_pickle=True)
-#         id_a = a[0, 0]
-#         seen[id_a] = a
-
-#         for j in range(i + 1, len(file_paths)):
-#             f2 = file_paths[j]
-#             b = np.load(os.path.join(folder, f2), allow_pickle=True)
-#             id_b = b[0, 0]
-#             result = compare_fn(a, b)
-#             _, _, score = result
-#             if score < sim_threshold:
-#                 yield (id_a, id_b)
-
-# similar_patoms = pairwise_comparisons(folder, compare, sim_threshold=0.3)
 print(len(similar_patoms))
 # check which patoms have not been added to the similar patoms lists
 not_similar_patoms = []

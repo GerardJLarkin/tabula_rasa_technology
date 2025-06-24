@@ -6,7 +6,6 @@ import random
 import string
 
 threshold = 0.00005
-# motion = [[-1, -1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0]]
 motion = np.array([[-1, -1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0]])
 
 def snapshot(single_frame_array, i):
@@ -81,6 +80,9 @@ def patoms(single_frame_array, seq_id):
     
     norm_patoms = []
     for i in chunks:
+        center_x = (i.shape[0]-1)/2; center_y = (i.shape[1]-1)/2 # scalar will never change
+        num_segments = 16 # scalar will never change
+        segment_width = 360 / num_segments
         # skip over and don't save/return patoms that take up 70% or more of the array pixel number
         # only included as my laptop does not have ability to handle large volumes of data
         if i.shape[0] >= ((single_frame_array.shape[0] * single_frame_array.shape[1]) * 0.7):
@@ -104,8 +106,12 @@ def patoms(single_frame_array, seq_id):
             colours = (i[:,0]/ 255.0).astype('float32')
             x_cent = np.array([x_mean] * pat_len).reshape(pat_len,1).astype('float32')
             y_cent = np.array([y_mean] * pat_len).reshape(pat_len,1).astype('float32')
-            # 9 columns (0,1,2,3,4,5,6)
-            patom_array = np.column_stack((patom_id, x_vals, y_vals, norm_x, norm_y, colours, sequence_id, x_cent, y_cent))
+            angle_deg = (np.degrees(np.arctan2(center_y - y_mean, x_mean - center_x)) + 360) % 360
+            angle_clockwise_from_north = (90 - angle_deg) % 360
+            segment = angle_clockwise_from_north // segment_width
+            segment = np.array([segment] * pat_len).reshape(pat_len,1).astype('int')
+            # 9 columns (0,1,2,3,4,5,6,7,8)
+            patom_array = np.column_stack((patom_id, x_vals, y_vals, norm_x, norm_y, colours, x_cent, y_cent, segment))
             norm_patoms.append(patom_array)
     
     return norm_patoms
