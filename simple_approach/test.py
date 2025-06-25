@@ -180,8 +180,8 @@ sys.path.append('/home/gerard/Desktop/capstone_project')
 sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
 historic_data = sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach/historic_data')
 
-from simple_approach_compare_v2 import ref_compare
-from simple_approach_patoms_v1 import patoms
+from tabula_rasa_technology.simple_approach.compare_v0 import ref_compare
+from tabula_rasa_technology.simple_approach.patoms_v0 import patoms
 
 root = os.path.dirname(os.path.abspath(__file__))
 # load reference patoms

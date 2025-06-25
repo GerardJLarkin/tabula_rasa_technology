@@ -13,7 +13,7 @@ start = perf_counter()
 sys.path.append('/home/gerard/Desktop/capstone_project')
 sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
 
-from simple_approach_patoms_v1 import patoms
+from tabula_rasa_technology.simple_approach.patoms_v0 import patoms
 from simple_approach_compare_v0 import compare
 
 # Using the same input dataset as per the compartor CNN-LSTM model
