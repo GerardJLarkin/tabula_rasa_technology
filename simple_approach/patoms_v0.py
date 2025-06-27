@@ -5,7 +5,7 @@ from time import perf_counter, process_time, clock_gettime_ns, CLOCK_REALTIME
 import random
 import string
 
-threshold = 0.00005
+threshold = 0.005 #0.00005
 motion = np.array([[-1, -1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0]])
 
 def snapshot(single_frame_array, i):
@@ -62,7 +62,7 @@ def snapshot(single_frame_array, i):
     
     return orig_nn
 
-def patoms(single_frame_array, seq_id):
+def patoms(single_frame_array):
     items = [(single_frame_array, i) for i in range(8)]
     # with multiprocessing
     with Pool(processes=2) as pool:
@@ -100,7 +100,6 @@ def patoms(single_frame_array, seq_id):
             min_y = y_vals.min(); denominator_y = y_vals.max() - min_y
             adj_denom_y = np.where(denominator_y == 0, 1, denominator_y)
             norm_y = 2 * ((y_vals - y_vals.min()) / adj_denom_y) - 1   
-            sequence_id = np.array([seq_id] * pat_len).reshape(pat_len,1).astype('int32')
             patom_id = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(6))
             patom_id = np.array([patom_id] * pat_len).reshape(pat_len,1).astype('object')
             colours = (i[:,0]/ 255.0).astype('float32')

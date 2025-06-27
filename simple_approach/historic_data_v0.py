@@ -23,13 +23,12 @@ dataset = np.swapaxes(data, 0, 1)
 dataset = dataset[:100, ...]
 print('loaded')
 #generate patoms from sequences and save to disk
-seq_ind = 0
 for i in range(0,100,1):
     print('sequnce num:',i)
     sequence = dataset[i]
     for j in range(0,20,1):
         frame = sequence[j]
-        out_patoms = patoms(frame, seq_ind)
+        out_patoms = patoms(frame)
         for i in out_patoms:
             patom_id = i[0,0]
             # save patoms to disk

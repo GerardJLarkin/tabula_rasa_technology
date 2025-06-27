@@ -33,6 +33,7 @@ for fname in os.listdir(folder):
     patoms[patom_id] = arr
 print('loaded')
 
+## memory issue here - can't seem to get total number of patoms from dataset into memory and be useful
 patoms = dict(islice(patoms.items(), 8000))
 
 ids = list(patoms.keys())

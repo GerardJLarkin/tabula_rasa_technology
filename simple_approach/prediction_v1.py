@@ -34,10 +34,9 @@ reference = os.path.join(root, 'reference_patoms')
 dict_ref_patom = dict()
 for fname in os.listdir(reference):
     dict_ref_patom[(fname.split('.')[0]).split('_')[1]] = np.load(os.path.join(reference, fname), allow_pickle=True)
-
+    
 #ref_patoms = [np.load(os.path.join(reference, fname), allow_pickle=True) for fname in os.listdir(reference)]
 ref_patoms = list(dict_ref_patom.values())
-print(ref_patoms[:2])
 print('loaded reference patoms')
 
 ## load visual reference linking patoms
@@ -76,45 +75,46 @@ for ix in range(0,1,1):
     s = perf_counter()
     seq = sequence[ix]
     prev = None
-    prev_cent = None
-    for j in range(0,10,1):
+    final_frame_compare_output = []
+    num_frames = 10
+    for j in range(0,num_frames,1):
         frame = seq[j]
-        print('frame:',j)
+        #print('frame:',j)
         seq_out_patoms = patoms(frame)
-        print('num patoms:',len(seq_out_patoms))
-        centroids = [(i[0,6],i[0,7]) for i in seq_out_patoms]
-        print('patom centroids:',centroids)
         best_matches = find_best_matches(seq_out_patoms, ref_patoms, ref_compare)
         if prev is not None:
             for pat1 in prev:
                 loop_list = []
-                print('--loop--')
+                #print('--loop--')
                 for pat2 in best_matches:
                     centroid_dist = np.sqrt((pat2[2] - pat1[2])**2 + (pat2[3]-pat1[3])**2)
                     direction = f"{pat1[1]:0>2}"+f"{pat2[1]:0>2}"
                     magnitude = f"{int(round((np.sqrt((pat2[2] - pat1[2])**2 + (pat2[3]-pat1[3])**2)) / 89.1,1)*10):0>2}" 
-                    loop_list.append((pat1[0]+pat2[0], centroid_dist, direction, magnitude))
+                    loop_list.append((pat2[0], centroid_dist, direction, magnitude, pat2[2], pat2[3]))
                 frame_compare_ref_patoms = min(loop_list, key=lambda i:i[1])
-                print(frame_compare_ref_patoms)
-            # frame_compare = list(product(prev, best_matches))
-            # for patom_compare in frame_compare:
-            #     print(patom_compare)
-                # ids = [i[0][0]+i[1][0] for i in patom_compare]         
-                # frame_0_ids = [i[0][0] for i in patom_compare] 
-                # centroid_dist = [np.sqrt((i[0][2] - i[1][2])**2 + (i[0][3]-i[1][3])**2) for i in patom_compare]
-                # print('ids cent dist', sorted(list(zip(frame_0_ids, centroid_dist, ids))))
-
-                # direction = [f"{i[0][1]:0>2}"+f"{i[1][1]:0>2}" for i in patom_compare]
-                # # review the output of this
-                # magnitude = [f"{int(round((np.sqrt((i[0][2] - i[1][2])**2 + (i[0][3]-i[1][3])**2)) / 89.1,1)*10):0>2}" 
-                #                         for i in patom_compare]
-                # vectors = [a[-6:]+b+c for a, b, c in zip(ids, direction, magnitude)]
-                # print('cross join best matches vectors',vectors)
-            
-
+                frame_compare_ref_patoms = frame_compare_ref_patoms[:1] + frame_compare_ref_patoms[2:]
+                if num_frames == j+1:
+                    final_frame_compare_output.append(frame_compare_ref_patoms)
+                    #print(frame_compare_ref_patoms)
         prev = best_matches
-        prev_cent = centroids
 
+    print(final_frame_compare_output)
+    # create vectors
+    # get next set of patoms
+    curr_seq_ref_patoms = [i[0] for i in final_frame_compare_output]
+    print(curr_seq_ref_patoms)
+    # find all next sequence ref patoms based on curr sequence ref patoms
+    next_seq_ref_patoms = []
+    for i in curr_seq_ref_patoms:
+        next_seq_keys = [(i, k, v) for k, v in vrlp.items() if k[:6] == i]
+        next_seq_key = max(next_seq_keys, key=lambda i:i[2])
+        next_seq_ref_patoms.append(next_seq_key[1][-6:])
+    print(next_seq_ref_patoms)
+    # rebuld array to print as image
+    # need translation vector
+    # need centroid from set of patoms from last input frame
+
+    
 en1 = perf_counter()
 print('Time taken for 100 seqs (mins):', round((en1-st1)/60,4))
 

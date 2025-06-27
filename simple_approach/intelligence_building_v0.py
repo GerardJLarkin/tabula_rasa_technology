@@ -69,14 +69,13 @@ def find_best_matches(
     return matches
 
 st1 = perf_counter()
-seq_ind = 0
 for ix in range(0,100,1):
     s = perf_counter()
     seq = sequence[ix]
     prev = None
     for j in range(0,20,1):
         frame = seq[j]
-        seq_out_patoms = patoms(frame, seq_ind)
+        seq_out_patoms = patoms(frame)
         best_matches = find_best_matches(seq_out_patoms, ref_patoms, ref_compare)
         if prev is not None:
             matches = [i[0][0]+i[1][0] for i in product(prev, best_matches)]

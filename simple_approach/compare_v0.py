@@ -49,7 +49,7 @@ def compare(a: np.ndarray, b: np.ndarray) -> List[Union[int, float, Any]]:
     if total == 0.0:
         score = 1.0 / 3.0
     else:
-        score = (pos_sim * 0.4 + colour_sim * 0.2 + fill_sim * 0.4) / total
+        score = (pos_sim * 0.5 + colour_sim * 0.2 + fill_sim * 0.3) / total
 
     return [id_a, id_b, score]
 
@@ -99,6 +99,6 @@ def ref_compare(a: np.ndarray, b: np.ndarray) -> List[Union[int, float, Any]]:
     if total == 0.0:
         score = 0.0
     else:
-        score = (pos_sim * 0.4 + colour_sim * 0.2 + fill_sim * 0.4) / total
+        score = (pos_sim * 0.5 + colour_sim * 0.2 + fill_sim * 0.3) / total
 
     return [id_a, id_b, score]   
