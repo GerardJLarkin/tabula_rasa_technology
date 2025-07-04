@@ -13,7 +13,7 @@ start = perf_counter()
 sys.path.append('/home/gerard/Desktop/capstone_project')
 sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
 
-from tabula_rasa_technology.simple_approach.patoms_v0 import patoms
+from tabula_rasa_technology.simple_approach.patoms_v1 import patoms
 
 # Using the same input dataset as per the compartor CNN-LSTM model
 data = np.load('mnist_test_seq.npy')
@@ -24,17 +24,15 @@ dataset = dataset[:100, ...]
 print('loaded')
 #generate patoms from sequences and save to disk
 for i in range(0,100,1):
-    print('sequnce num:',i)
+    print('sequence num:',i)
     sequence = dataset[i]
     for j in range(0,20,1):
         frame = sequence[j]
         out_patoms = patoms(frame)
         for i in out_patoms:
-            patom_id = i[0,0]
             # save patoms to disk
-            np.save(f'historic_data/patom_{patom_id}', i)
+            np.save(f'historic_data/patom_{str(i[0,0])}', i)
         del out_patoms
-
 
 end = perf_counter()
 print("Time taken (mins):", (end - start)/60)

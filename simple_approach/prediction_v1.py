@@ -87,6 +87,7 @@ for ix in range(0,1,1):
                 loop_list = []
                 #print('--loop--')
                 for pat2 in best_matches:
+                    print(pat2)
                     centroid_dist = np.sqrt((pat2[2] - pat1[2])**2 + (pat2[3]-pat1[3])**2)
                     direction = f"{pat1[1]:0>2}"+f"{pat2[1]:0>2}"
                     magnitude = f"{int(round((np.sqrt((pat2[2] - pat1[2])**2 + (pat2[3]-pat1[3])**2)) / 89.1,1)*10):0>2}" 
@@ -98,23 +99,76 @@ for ix in range(0,1,1):
                     #print(frame_compare_ref_patoms)
         prev = best_matches
 
-    print(final_frame_compare_output)
+    #print(final_frame_compare_output)
     # create vectors
     # get next set of patoms
     curr_seq_ref_patoms = [i[0] for i in final_frame_compare_output]
-    print(curr_seq_ref_patoms)
+    #print('curr', curr_seq_ref_patoms)
     # find all next sequence ref patoms based on curr sequence ref patoms
     next_seq_ref_patoms = []
     for i in curr_seq_ref_patoms:
         next_seq_keys = [(i, k, v) for k, v in vrlp.items() if k[:6] == i]
         next_seq_key = max(next_seq_keys, key=lambda i:i[2])
         next_seq_ref_patoms.append(next_seq_key[1][-6:])
-    print(next_seq_ref_patoms)
+    #print('next',next_seq_ref_patoms)
     # rebuld array to print as image
     # need translation vector
     # need centroid from set of patoms from last input frame
+    next_ref_patoms = []
+    for ix, i in enumerate(next_seq_ref_patoms):
+        next_patom = dict_ref_patom[i]
+        #print('nxtp', next_patom)
+        # reverse normalisation to find correct x, y positions
+        # print(next_patom[:,2] * (64 / 2))
+        x_vals = next_patom[:,1] * (64 / 2)
+        pseudo_orig_x_vals = final_frame_compare_output[ix][3] + x_vals
+        print('pseudo x vals',pseudo_orig_x_vals)
+        pseudo_orig_x_vals = pseudo_orig_x_vals.astype('int64').reshape(next_patom.shape[0],1)
+        y_vals = next_patom[:,2] * (64 / 2)
+        pseudo_orig_y_vals = final_frame_compare_output[ix][4] + y_vals
+        print('pseudo y vals',pseudo_orig_y_vals)
+        pseudo_orig_y_vals = pseudo_orig_y_vals.astype('int64').reshape(next_patom.shape[0],1)
+        pseudo_orig_array = np.hstack((pseudo_orig_x_vals, pseudo_orig_y_vals, next_patom[:,3].reshape(next_patom.shape[0],1)))
+        print('pseudo',pseudo_orig_array)
+        print(pseudo_orig_array.max())
+        next_ref_patoms.append(pseudo_orig_array)
 
-    
+    array_image = []
+
+def merge_point_lists(
+    point_lists: List[np.ndarray],
+    shape: tuple[int, int],
+    mode: str = "sum"  # or "overwrite"
+) -> np.ndarray:
+    """
+    Given a list of N×3 arrays, each with columns [x, y, value],
+    returns a single 2D array of shape `shape` filled with the
+    values from all lists at their (x,y) coords.
+
+    If mode=="sum", overlapping indices are summed;
+    if mode=="overwrite", later lists simply overwrite earlier.
+    """
+    result = np.zeros(shape, dtype=float)
+
+    for pts in point_lists:
+        # pts[:,0] = x indices, pts[:,1] = y indices, pts[:,2] = values
+        xs = pts[:, 0].astype(int)
+        ys = pts[:, 1].astype(int)
+        vals = pts[:, 2]
+
+        if mode == "sum":
+            # accumulate (works even if xs/ys contain duplicates)
+            np.add.at(result, (ys, xs), vals)
+        else:  # overwrite
+            result[ys, xs] = vals
+
+    return result
+
+shape = (64,64)
+result = merge_point_lists(next_ref_patoms, shape, mode="overwrite")
+
+print(result)
+
 en1 = perf_counter()
 print('Time taken for 100 seqs (mins):', round((en1-st1)/60,4))
 

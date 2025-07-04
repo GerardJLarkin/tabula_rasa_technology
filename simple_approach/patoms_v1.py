@@ -5,7 +5,7 @@ from time import perf_counter, process_time, clock_gettime_ns, CLOCK_REALTIME
 import random
 import string
 
-threshold = 0.005 #0.00005
+threshold = 0.014 #0.00005
 motion = np.array([[-1, -1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0]])
 
 def snapshot(single_frame_array, i):
@@ -91,26 +91,39 @@ def patoms(single_frame_array):
         elif i.shape[0] <= 4:
             pass
         else:
-            x_vals = i[:,1]; y_vals = i[:,2]
-            x_mean = np.floor(x_vals.mean()); y_mean = np.floor(y_vals.mean())
             pat_len = i.shape[0]
+            x_vals = i[:,1]; y_vals = i[:,2]
+            
+            x_mean = np.floor(x_vals.mean()); y_mean = np.floor(y_vals.mean())
             min_x = x_vals.min(); max_x = x_vals.max(); denominator_x = max_x - min_x
             adj_denom_x = np.where(denominator_x == 0, 1, denominator_x)
             norm_x = 2 * ((x_vals - x_vals.min()) / adj_denom_x) - 1
+            
             min_y = y_vals.min(); max_y = y_vals.max(); denominator_y = max_y - min_y
             adj_denom_y = np.where(denominator_y == 0, 1, denominator_y)
-            norm_y = 2 * ((y_vals - y_vals.min()) / adj_denom_y) - 1   
-            patom_id = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(6))
-            patom_id = np.array([patom_id] * pat_len).reshape(pat_len,1).astype('object')
-            colours = (i[:,0]/ 255.0).astype('float32')
-            x_cent = np.array([x_mean] * pat_len).reshape(pat_len,1).astype('float32')
-            y_cent = np.array([y_mean] * pat_len).reshape(pat_len,1).astype('float32')
+            norm_y = 2 * ((y_vals - y_vals.min()) / adj_denom_y) - 1
+            
+            min_x = np.array([min_x] * pat_len).reshape(pat_len,1)
+            max_x = np.array([max_x] * pat_len).reshape(pat_len,1)
+
+            min_y = np.array([min_y] * pat_len).reshape(pat_len,1)
+            max_y = np.array([max_y] * pat_len).reshape(pat_len,1)
+            
+            colours = (i[:,0]/ 255.0)
+            
+            x_cent = np.array([x_mean] * pat_len).reshape(pat_len,1)
+            y_cent = np.array([y_mean] * pat_len).reshape(pat_len,1)
+            
             angle_deg = (np.degrees(np.arctan2(center_y - y_mean, x_mean - center_x)) + 360) % 360
             angle_clockwise_from_north = (90 - angle_deg) % 360
             segment = angle_clockwise_from_north // segment_width
-            segment = np.array([segment] * pat_len).reshape(pat_len,1).astype('int')
-            # 9 columns (0,1,2,3,4,5,6,7,8)
-            patom_array = np.column_stack((patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colours, x_cent, y_cent, segment))
+            segment = np.array([segment] * pat_len).reshape(pat_len,1)
+
+            patom_id = np.random.default_rng().random(dtype=np.float32)
+            patom_id = np.array([patom_id] * pat_len).reshape(pat_len,1)
+
+            # 11 columns (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+            patom_array = np.column_stack((patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colours, x_cent, y_cent, segment)).astype('float32')
             norm_patoms.append(patom_array)
     
     return norm_patoms

@@ -18,7 +18,7 @@ historic_data = sys.path.append('/home/gerard/Desktop/capstone_project/simple_ap
 root = os.path.dirname(os.path.abspath(__file__))
 folder = os.path.join(root, 'historic_data')
 
-from tabula_rasa_technology.simple_approach.compare_v0 import compare
+from tabula_rasa_technology.simple_approach.compare_v1 import compare
 
 # Getting all the numpy arrays .npy files based on matching pattern (*.npy)
 file_paths = glob.glob(os.path.join(folder, '*.npy'))
@@ -30,10 +30,10 @@ for fname in os.listdir(folder):
     arr = np.load(os.path.join(folder, fname), allow_pickle=True)
     patom_id = str(arr[0,0])
     patoms[patom_id] = arr
-print('loaded')
+print('historic data loaded')
 
 ## memory issue here - can't seem to get total number of patoms from dataset into memory and be useful
-patoms = dict(islice(patoms.items(), 80))
+patoms = dict(islice(patoms.items(), 8100))
 
 ids = list(patoms.keys())
 arrays = [patoms[i] for i in ids]
@@ -48,7 +48,6 @@ with Pool(processes=4) as pool:
 
     similar_patoms = [(one, two) for one, two, score in results if score < sim_threshold]
 
-print(len(similar_patoms))
 # check which patoms have not been added to the similar patoms lists
 not_similar_patoms = []
 for i in ids:
@@ -56,7 +55,7 @@ for i in ids:
         not_similar_patoms.append(i)
 
 # create a reference patom for each of the patom ids in the not similar list
-# 12 columns (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+# 11 columns (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 # (patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colours, x_cent, y_cent, segment)
 # ref patoms structure: ref_patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colour
 ref_patom_cols = [0, 1, 2, 3, 4, 5, 6, 7]
@@ -115,8 +114,11 @@ for group in groups:
     group_patoms = np.vstack(group_patoms)
     # i'm ok with average number of rows for now
     avg_rows = int(np.ceil(group_patoms.shape[0] / num_patoms))
-    # does the following actually make sense?????
-    x_vals, x_val_count = np.unique(group_patoms[:,3], return_counts=True)
+    # 11 columns (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    # (patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colours, x_cent, y_cent, segment)
+    # ref patoms structure: ref_patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colour
+    
+    x_vals, x_val_count = np.unique(group_patoms[:,5], return_counts=True)
     x_vals = x_vals.reshape(x_vals.shape[0],1); x_val_count = x_val_count.reshape(x_val_count.shape[0],1)
     x_vals = np.hstack((x_vals, x_val_count))
     x_desc_order = x_vals[:,-1].argsort()[::-1]
@@ -133,9 +135,14 @@ for group in groups:
         counts = x_vals_cumsum[:, 1].astype(int)
         expanded_x_vals_array = np.repeat(x_vals_cumsum, counts, axis=0)
         x_vals = expanded_x_vals_array[:avg_rows,0].reshape(avg_rows,1)
-        
 
-    y_vals, y_val_count = np.unique(group_patoms[:,4], return_counts=True)
+    # get avg min, max x 
+    group_min_x = np.unique(group_patoms[:,1]).mean()
+    group_max_x = np.unique(group_patoms[:,2]).mean()  
+    min_x_arr = np.array([group_min_x] * avg_rows).reshape(avg_rows,1)
+    max_x_arr = np.array([group_max_x] * avg_rows).reshape(avg_rows,1)
+
+    y_vals, y_val_count = np.unique(group_patoms[:,6], return_counts=True)
     y_vals = y_vals.reshape(y_vals.shape[0],1); y_val_count = y_val_count.reshape(y_val_count.shape[0],1)
     y_vals = np.hstack((y_vals, y_val_count))
     y_desc_order = y_vals[:,-1].argsort()[::-1]
@@ -148,15 +155,20 @@ for group in groups:
         counts = y_vals_cumsum[:, 1].astype(int)
         expanded_y_vals_array = np.repeat(y_vals_cumsum, counts, axis=0)
         y_vals = expanded_y_vals_array[:avg_rows,0].reshape(avg_rows,1)
+    
+    # get avg min, max y
+    group_min_y = np.unique(group_patoms[:,3]).mean()
+    group_max_y = np.unique(group_patoms[:,4]).mean()  
+    min_y_arr = np.array([group_min_y] * avg_rows).reshape(avg_rows,1)
+    max_y_arr = np.array([group_max_y] * avg_rows).reshape(avg_rows,1)
 
-    x_y = np.hstack((x_vals, y_vals))
+    x_y = np.hstack((min_x_arr, max_x_arr, min_y_arr, max_y_arr, x_vals, y_vals))
     
     #get 'average' colour at x,y postion?????
     # back to original vstacked group of patoms, extract pixel colours for each of the x values that made it in to the final cut
     x_colours = []
-    for i in x_y[:,0].tolist():
-        #print('x',i)
-        colours = group_patoms[:,5][group_patoms[:,3] == i]
+    for i in x_y[:,4].tolist():
+        colours = group_patoms[:,7][group_patoms[:,5] == i]
         # get mode, mean and median
         mode_colour, colour_count = np.unique(colours, return_counts=True)
         mode_colour, colour_count = mode_colour.reshape(mode_colour.shape[0],1), colour_count.reshape(colour_count.shape[0],1)
@@ -170,9 +182,8 @@ for group in groups:
         x_colours.append(colour)
 
     y_colours = []
-    for i in x_y[:,1].tolist():
-        #print('y', i)
-        colours = group_patoms[:,5][group_patoms[:,4] == i]
+    for i in x_y[:,5].tolist():
+        colours = group_patoms[:,7][group_patoms[:,6] == i]
         # get mode, mean and median
         mode_colour, colour_count = np.unique(colours, return_counts=True)
         mode_colour, colour_count = mode_colour.reshape(mode_colour.shape[0],1), colour_count.reshape(colour_count.shape[0],1)
@@ -189,12 +200,12 @@ for group in groups:
     x_y_colours = np.array([sum(i)/2 for i in x_y_colours]).reshape(avg_rows,1)
 
     # create a reference patom id
-    ref_patom_id = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(6))
-    ref_patom_id = np.array([ref_patom_id] * avg_rows).reshape(avg_rows,1).astype('object')
-    ref_patom = np.hstack((ref_patom_id, x_y, x_y_colours))
-    id = ref_patom_id[0,0]
+    ref_patom_id = np.random.default_rng().random(dtype=np.float32)
+    ref_patom_id_arr = np.array([ref_patom_id] * avg_rows).reshape(avg_rows,1).astype('object')
     
-    np.save(f'reference_patoms/patom_{id}', ref_patom)
+    ref_patom = np.hstack((ref_patom_id_arr, x_y, x_y_colours))
+    
+    np.save(f'reference_patoms/patom_{str(ref_patom_id)}', ref_patom)
 
 end = perf_counter()
 print("Time taken (mins):", (end - start)/60)
