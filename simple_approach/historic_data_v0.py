@@ -20,10 +20,10 @@ data = np.load('mnist_test_seq.npy')
 # Swap the axes representing the number of frames and number of data samples.
 dataset = np.swapaxes(data, 0, 1)
 # We'll pick out 1000 of the 10000 total examples and use those.
-dataset = dataset[:100, ...]
+dataset = dataset[:50, ...]
 print('loaded')
 #generate patoms from sequences and save to disk
-for i in range(0,100,1):
+for i in range(0,50,1):
     print('sequence num:',i)
     sequence = dataset[i]
     for j in range(0,20,1):

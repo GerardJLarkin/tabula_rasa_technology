@@ -91,7 +91,6 @@ def patoms(single_frame_array):
         elif i.shape[0] <= 4:
             pass
         else:
-            pat_len = i.shape[0]
             x_vals = i[:,1]; y_vals = i[:,2]
             
             x_mean = np.floor(x_vals.mean()); y_mean = np.floor(y_vals.mean())
@@ -103,27 +102,28 @@ def patoms(single_frame_array):
             adj_denom_y = np.where(denominator_y == 0, 1, denominator_y)
             norm_y = 2 * ((y_vals - y_vals.min()) / adj_denom_y) - 1
             
-            min_x = np.array([min_x] * pat_len).reshape(pat_len,1)
-            max_x = np.array([max_x] * pat_len).reshape(pat_len,1)
-
-            min_y = np.array([min_y] * pat_len).reshape(pat_len,1)
-            max_y = np.array([max_y] * pat_len).reshape(pat_len,1)
-            
             colours = (i[:,0]/ 255.0)
-            
-            x_cent = np.array([x_mean] * pat_len).reshape(pat_len,1)
-            y_cent = np.array([y_mean] * pat_len).reshape(pat_len,1)
             
             angle_deg = (np.degrees(np.arctan2(center_y - y_mean, x_mean - center_x)) + 360) % 360
             angle_clockwise_from_north = (90 - angle_deg) % 360
             segment = angle_clockwise_from_north // segment_width
-            segment = np.array([segment] * pat_len).reshape(pat_len,1)
 
             patom_id = np.random.default_rng().random(dtype=np.float32)
-            patom_id = np.array([patom_id] * pat_len).reshape(pat_len,1)
 
-            # 11 columns (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-            patom_array = np.column_stack((patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colours, x_cent, y_cent, segment)).astype('float32')
+            ## column stack for id, cent_x, cent_y, segment
+            first_row = np.array([patom_id, x_mean, y_mean, segment])
+            ## column stack for min x, max x, min y, max y
+            second_row = np.array([min_x, max_x, min_y, max_y])
+            ## column stack for norm x, norm y, colours, ...
+            patom_values = np.column_stack((norm_x, norm_y, colours))
+            patom_padded = np.full((patom_values.shape[0], 1), np.nan)
+            patom_values = np.hstack([patom_values, patom_padded])
+
+            # 4 columns (0, 1, 2, 3)
+            # row 1 is id, centroid coordinates and segment
+            # row 2 is min and max x and y values for original x and y coordinates in the frame
+            # remaining rows are the normalised x and y values and the normalised colour at each coordinate
+            patom_array = np.vstack((first_row, second_row, patom_values)).astype('float32')
             norm_patoms.append(patom_array)
     
     return norm_patoms

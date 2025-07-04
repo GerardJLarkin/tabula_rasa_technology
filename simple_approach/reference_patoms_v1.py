@@ -33,7 +33,7 @@ for fname in os.listdir(folder):
 print('historic data loaded')
 
 ## memory issue here - can't seem to get total number of patoms from dataset into memory and be useful
-patoms = dict(islice(patoms.items(), 8100))
+#patoms = dict(islice(patoms.items(), 8100))
 
 ids = list(patoms.keys())
 arrays = [patoms[i] for i in ids]
@@ -46,7 +46,7 @@ with Pool(processes=4) as pool:
     tasks = ((arrays[i], arrays[j]) for i,j in idx_pairs)
     results = pool.starmap(compare, tasks, chunksize=1000)
 
-    similar_patoms = [(one, two) for one, two, score in results if score < sim_threshold]
+    similar_patoms = [(one, two) for one, two, score in results if score <= sim_threshold]
 
 # check which patoms have not been added to the similar patoms lists
 not_similar_patoms = []
@@ -55,16 +55,16 @@ for i in ids:
         not_similar_patoms.append(i)
 
 # create a reference patom for each of the patom ids in the not similar list
-# 11 columns (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-# (patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colours, x_cent, y_cent, segment)
-# ref patoms structure: ref_patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colour
-ref_patom_cols = [0, 1, 2, 3, 4, 5, 6, 7]
+# 4 columns (0, 1, 2, 3)
+# row 1 is id, centroid coordinates and segment
+# row 2 is min and max x and y values for original x and y coordinates in the frame
+# remaining rows are the normalised x and y values and the normalised colour at each coordinate
+
 # get non similar patoms from dictionary of patoms
 non_sim_patom = [patoms[i] for i in not_similar_patoms]
 # select only required columns
 for pat in non_sim_patom:
-    ref_patom = pat[:, ref_patom_cols]
-    np.save(f'reference_patoms/patom_{str(pat[0,0])}', ref_patom)
+    np.save(f'reference_patoms/patom_{str(pat[0,0])}', pat)
 
 class UnionFind:
     def __init__(self):
