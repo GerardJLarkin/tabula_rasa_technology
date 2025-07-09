@@ -107,7 +107,7 @@ def patoms(single_frame_array):
             angle_deg = (np.degrees(np.arctan2(center_y - y_mean, x_mean - center_x)) + 360) % 360
             angle_clockwise_from_north = (90 - angle_deg) % 360
             segment = angle_clockwise_from_north // segment_width
-
+            
             patom_id = np.random.default_rng().random(dtype=np.float32)
 
             ## column stack for id, cent_x, cent_y, segment

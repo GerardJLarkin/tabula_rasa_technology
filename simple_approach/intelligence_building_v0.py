@@ -6,7 +6,6 @@ from time import perf_counter
 from typing import Callable, List, Tuple, Set
 from itertools import product
 import pickle
-from collections import deque
 
 start = perf_counter()
 
@@ -25,7 +24,7 @@ reference = os.path.join(root, 'reference_patoms')
 ref_patoms = [np.load(os.path.join(reference, fname), allow_pickle=True) for fname in os.listdir(reference)]
 
 ## visual reference linking patoms
-ref_ids = [i[0,0] for i in ref_patoms]
+ref_ids = [str(i[0,0]) for i in ref_patoms]
 vrlp_keys = [i[0]+i[1] for i in product(ref_ids, repeat=2)]
 vrlp0 = dict.fromkeys(vrlp_keys, 0) # 61.5MB to start
 print('vrlp',sys.getsizeof(vrlp0))
@@ -60,47 +59,116 @@ sequence = sequence[:50, ...]
 def find_best_matches(
     arrays: List[np.ndarray],
     references: List[np.ndarray],
-    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[str, str, float]]) -> Set[Tuple[str, float, float, int]]:
+    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[str, str, float]]) -> Set[Tuple[str, float, float, float]]:
     
-    matches: Set[Tuple[str, float, float, int]] = set()
+    matches: Set[Tuple[str, float, float, float]] = set()
     for arr in arrays:
-        segment = arr[0,8]
-        cent_x = arr[0,6]
-        cent_y = arr[0,7]
         best_score = float('inf')
-        best_ref: str = None
+        best_ref_id: str = None
         for ref in references:
             id1, id2, score = compare_func(arr, ref)
             if score < best_score:
                 best_score = score
-                best_ref = id2
-        matches.add((best_ref, segment, cent_x, cent_y))
+                best_ref_id = id2
+                x_cent = arr[0,1] 
+                y_cent = arr[0,2]
+                seg = arr[0,3]
+                best_ref = (best_ref_id, x_cent, y_cent, seg)
+        matches.add(best_ref)
+    
     return matches
-
-working_memory = deque(maxlen=5)
 
 st1 = perf_counter()
 for ix in range(0,50,1):
     s = perf_counter()
     seq = sequence[ix]
     
-    prev = None
+    prev0 = None; prev1 = None; prev2 = None; prev3 = None; prev4 = None
     for j in range(0,20,1):
-        
-        frame = seq[j]
-        seq_out_patoms = patoms(frame)
-        best_matches = find_best_matches(seq_out_patoms, ref_patoms, compare)
-        if prev is not None:
-            matches = [i[0][0]+i[1][0] for i in product(prev, best_matches)]
-            for i in matches:
-                vrlp0[i] += 0.0000001
-            direction = [f"{i[0][1]:0>2}"+f"{i[1][1]:0>2}" for i in product(prev, best_matches)]
-            magnitude = [f"{int(round((np.sqrt((i[0][2] - i[1][2])**2 + (i[0][3]-i[1][3])**2)) / 89.1,1)*10):0>2}" 
-                                    for i in product(prev, best_matches)]
-            vectors = [a[-6:]+b+c for a, b, c in zip(matches, direction, magnitude)]
-            for i in vectors:
-                vrlv0[i] += 0.0000001
-        prev = best_matches
+        if (j < 4) | (j > 20):
+            continue
+        else:
+            frame0 = seq[j-4]
+            seq_out_patoms0 = patoms(frame0)
+            best_matches0 = find_best_matches(seq_out_patoms0, ref_patoms, compare)
+            if prev0 is not None:
+                cross0 = [i for i in product(prev0, best_matches0)]
+                matches0 = [str(i[0][0])+str(i[1][0]) for i in cross0]
+                for i in matches0:
+                    vrlp0[i] += 0.0000001
+                direction0 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross0]
+                magnitude0 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
+                                        for i in cross0]
+                vectors0 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches0, direction0, magnitude0)]
+                for i in vectors0:
+                    vrlv0[i] += 0.0000001
+            prev0 = best_matches0
+
+            frame1 = seq[j-3]
+            seq_out_patoms1 = patoms(frame1)
+            best_matches1 = find_best_matches(seq_out_patoms1, ref_patoms, compare)
+            if prev1 is not None:
+                cross1 = [i for i in product(prev1, best_matches1)]
+                matches1 = [str(i[0][0])+str(i[1][0]) for i in cross1]
+                for i in matches1:
+                    vrlp1[i] += 0.0000001
+                direction1 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross1]
+                magnitude1 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
+                                        for i in cross1]
+                vectors1 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches1, direction1, magnitude1)]
+                for i in vectors1:
+                    vrlv1[i] += 0.0000001
+            prev1 = best_matches1
+
+            frame2 = seq[j-2]
+            seq_out_patoms2 = patoms(frame2)
+            best_matches2 = find_best_matches(seq_out_patoms2, ref_patoms, compare)
+            if prev2 is not None:
+                cross2 = [i for i in product(prev2, best_matches2)]
+                matches2 = [str(i[0][0])+str(i[1][0]) for i in cross2]
+                for i in matches2:
+                    vrlp2[i] += 0.0000001
+                direction2 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross2]
+                magnitude2 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
+                                        for i in cross2]
+                vectors2 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches2, direction2, magnitude2)]
+                for i in vectors2:
+                    vrlv2[i] += 0.0000001
+            prev2 = best_matches2
+
+            frame3 = seq[j-1]
+            seq_out_patoms3 = patoms(frame3)
+            best_matches3 = find_best_matches(seq_out_patoms3, ref_patoms, compare)
+            if prev3 is not None:
+                cross3 = [i for i in product(prev3, best_matches3)]
+                matches3 = [str(i[0][0])+str(i[1][0]) for i in cross3]
+                for i in matches3:
+                    vrlp3[i] += 0.0000001
+                direction3 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross3]
+                magnitude3 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
+                                        for i in cross3]
+                vectors3 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches3, direction3, magnitude3)]
+                for i in vectors3:
+                    vrlv3[i] += 0.0000001
+            prev3 = best_matches3
+
+            frame4 = seq[j]
+            seq_out_patoms4 = patoms(frame4)
+            best_matches4 = find_best_matches(seq_out_patoms4, ref_patoms, compare)
+            if prev4 is not None:
+                cross4 = [i for i in product(prev4, best_matches4)]
+                matches4 = [str(i[0][0])+str(i[1][0]) for i in cross4]
+                for i in matches4:
+                    vrlp4[i] += 0.0000001
+                direction4 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross4]
+                magnitude4 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
+                                        for i in cross4]
+                vectors4 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches4, direction4, magnitude4)]
+                for i in vectors4:
+                    vrlv4[i] += 0.0000001
+            prev4 = best_matches4
+    
+    
     e = perf_counter()
     print('seq_num:', ix, 'time taken (mins):', round((e-s)/60,4) )
 
