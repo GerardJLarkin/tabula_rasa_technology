@@ -5,7 +5,7 @@ from time import perf_counter, process_time, clock_gettime_ns, CLOCK_REALTIME
 import random
 import string
 
-threshold = 0.014 #0.00005
+threshold = 0.05 #0.00005
 motion = np.array([[-1, -1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0]])
 
 def snapshot(single_frame_array, i):

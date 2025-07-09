@@ -33,14 +33,16 @@ for fname in os.listdir(folder):
 print('historic data loaded')
 
 ## memory issue here - can't seem to get total number of patoms from dataset into memory and be useful
-#patoms = dict(islice(patoms.items(), 8100))
+patoms = dict(islice(patoms.items(), 500))
+
+#print(patoms)
 
 ids = list(patoms.keys())
 arrays = [patoms[i] for i in ids]
 idx_pairs = [(i, j) for i in range(len(ids)) for j in range(i+1, len(ids))]
 
 # set a similarity threshold
-sim_threshold = 0.3
+sim_threshold = 0.25
 s = perf_counter()
 with Pool(processes=4) as pool:
     tasks = ((arrays[i], arrays[j]) for i,j in idx_pairs)
@@ -48,6 +50,7 @@ with Pool(processes=4) as pool:
 
     similar_patoms = [(one, two) for one, two, score in results if score <= sim_threshold]
 
+print('sim_patoms', len(similar_patoms))
 # check which patoms have not been added to the similar patoms lists
 not_similar_patoms = []
 for i in ids:
@@ -62,6 +65,7 @@ for i in ids:
 
 # get non similar patoms from dictionary of patoms
 non_sim_patom = [patoms[i] for i in not_similar_patoms]
+print('non sim patoms', len(non_sim_patom))
 # select only required columns
 for pat in non_sim_patom:
     np.save(f'reference_patoms/patom_{str(pat[0,0])}', pat)
@@ -105,20 +109,36 @@ def extract_groups(pairs):
 
 groups = extract_groups(similar_patoms)
 
+print('groups', len(groups))
+
 for group in groups:
-    group_patoms = [patoms[id] for id in group]
+    # need to split each patom into 3 parts: 1st row, 2nd row, all other rows
+    group_first_rows = [patoms[id][1,:] for id in group]
+    group_second_rows = [patoms[id][2,:] for id in group]
+    group_patoms = [patoms[id][2:,:3] for id in group]
     num_patoms = len(group_patoms)
+    
+    # stack first rows to create a singluar group patom numpy array
+    group_first_rows = tuple(group_first_rows)
+    group_first_rows = np.vstack(group_first_rows)
+
+    # stack second rows to create a singluar group patom numpy array
+    group_second_rows = tuple(group_second_rows)
+    group_second_rows = np.vstack(group_second_rows)
 
     # stack patoms to create a singluar group patom numpy array
     group_patoms = tuple(group_patoms)
     group_patoms = np.vstack(group_patoms)
+    
     # i'm ok with average number of rows for now
     avg_rows = int(np.ceil(group_patoms.shape[0] / num_patoms))
-    # 11 columns (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-    # (patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colours, x_cent, y_cent, segment)
-    # ref patoms structure: ref_patom_id, min_x, max_x, min_y, max_y, norm_x, norm_y, colour
     
-    x_vals, x_val_count = np.unique(group_patoms[:,5], return_counts=True)
+    # 4 columns (0, 1, 2, 3)
+    # row 1 is id, centroid coordinates and segment
+    # row 2 is min and max x and y values for original x and y coordinates in the frame
+    # remaining rows are the normalised x and y values and the normalised colour at each coordinate
+    
+    x_vals, x_val_count = np.unique(group_patoms[:,0], return_counts=True)
     x_vals = x_vals.reshape(x_vals.shape[0],1); x_val_count = x_val_count.reshape(x_val_count.shape[0],1)
     x_vals = np.hstack((x_vals, x_val_count))
     x_desc_order = x_vals[:,-1].argsort()[::-1]
@@ -136,13 +156,11 @@ for group in groups:
         expanded_x_vals_array = np.repeat(x_vals_cumsum, counts, axis=0)
         x_vals = expanded_x_vals_array[:avg_rows,0].reshape(avg_rows,1)
 
-    # get avg min, max x 
-    group_min_x = np.unique(group_patoms[:,1]).mean()
-    group_max_x = np.unique(group_patoms[:,2]).mean()  
-    min_x_arr = np.array([group_min_x] * avg_rows).reshape(avg_rows,1)
-    max_x_arr = np.array([group_max_x] * avg_rows).reshape(avg_rows,1)
+    # get avg min, max x - get second row of each patom?
+    group_min_x = group_second_rows[:,0].mean()
+    group_max_x = group_second_rows[:,1].mean()
 
-    y_vals, y_val_count = np.unique(group_patoms[:,6], return_counts=True)
+    y_vals, y_val_count = np.unique(group_patoms[:,1], return_counts=True)
     y_vals = y_vals.reshape(y_vals.shape[0],1); y_val_count = y_val_count.reshape(y_val_count.shape[0],1)
     y_vals = np.hstack((y_vals, y_val_count))
     y_desc_order = y_vals[:,-1].argsort()[::-1]
@@ -157,18 +175,16 @@ for group in groups:
         y_vals = expanded_y_vals_array[:avg_rows,0].reshape(avg_rows,1)
     
     # get avg min, max y
-    group_min_y = np.unique(group_patoms[:,3]).mean()
-    group_max_y = np.unique(group_patoms[:,4]).mean()  
-    min_y_arr = np.array([group_min_y] * avg_rows).reshape(avg_rows,1)
-    max_y_arr = np.array([group_max_y] * avg_rows).reshape(avg_rows,1)
+    group_min_y = group_second_rows[:,2].mean()
+    group_max_y = group_second_rows[:,3].mean()
 
-    x_y = np.hstack((min_x_arr, max_x_arr, min_y_arr, max_y_arr, x_vals, y_vals))
+    x_y = np.hstack((x_vals, y_vals))
     
     #get 'average' colour at x,y postion?????
     # back to original vstacked group of patoms, extract pixel colours for each of the x values that made it in to the final cut
     x_colours = []
-    for i in x_y[:,4].tolist():
-        colours = group_patoms[:,7][group_patoms[:,5] == i]
+    for i in x_y[:,0].tolist():
+        colours = group_patoms[:,2][group_patoms[:,0] == i]
         # get mode, mean and median
         mode_colour, colour_count = np.unique(colours, return_counts=True)
         mode_colour, colour_count = mode_colour.reshape(mode_colour.shape[0],1), colour_count.reshape(colour_count.shape[0],1)
@@ -182,8 +198,8 @@ for group in groups:
         x_colours.append(colour)
 
     y_colours = []
-    for i in x_y[:,5].tolist():
-        colours = group_patoms[:,7][group_patoms[:,6] == i]
+    for i in x_y[:,1].tolist():
+        colours = group_patoms[:,2][group_patoms[:,1] == i]
         # get mode, mean and median
         mode_colour, colour_count = np.unique(colours, return_counts=True)
         mode_colour, colour_count = mode_colour.reshape(mode_colour.shape[0],1), colour_count.reshape(colour_count.shape[0],1)
@@ -201,9 +217,14 @@ for group in groups:
 
     # create a reference patom id
     ref_patom_id = np.random.default_rng().random(dtype=np.float32)
-    ref_patom_id_arr = np.array([ref_patom_id] * avg_rows).reshape(avg_rows,1).astype('object')
-    
-    ref_patom = np.hstack((ref_patom_id_arr, x_y, x_y_colours))
+
+    first_row = np.array([ref_patom_id, np.nan, np.nan, np.nan]).reshape(1,4)
+    second_row = np.array([group_min_x, group_max_x, group_min_y, group_max_y]).reshape(1,4)
+    ref_patom = np.hstack((x_y, x_y_colours))
+    ref_patom_padded = np.full((ref_patom.shape[0], 1), np.nan)
+    ref_patom_values = np.hstack([ref_patom, ref_patom_padded])
+
+    ref_patom = np.vstack((first_row, second_row, ref_patom_values))
     
     np.save(f'reference_patoms/patom_{str(ref_patom_id)}', ref_patom)
 
