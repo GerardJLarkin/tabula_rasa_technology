@@ -5,7 +5,7 @@ from time import perf_counter, process_time, clock_gettime_ns, CLOCK_REALTIME
 import random
 import string
 
-threshold = 0.05 #0.00005
+threshold = 0.0005 #0.00005
 motion = np.array([[-1, -1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0]])
 
 def snapshot(single_frame_array, i):
@@ -72,6 +72,18 @@ def patoms(single_frame_array):
     combined_output = np.vstack((res))
     combined_output = np.unique(combined_output, axis=0)
     combined_output = combined_output[combined_output[:,0].argsort()]
+
+    ######################################################################
+    ######################################################################
+    ## adding in section to save combined oupput to file for inspection ##
+    ## only saves last file (all others are overwritten)                ##
+    np.savetxt(
+    "inspection_data_combined_output.csv",     # output file
+    combined_output,            # the array to save
+    delimiter=",",  # comma‐separated
+    fmt="%.18e"     # format each float; adjust as needed
+    )
+
     
     # split patoms based on colour threshold
     differences = np.diff(combined_output[:, 0])
@@ -85,12 +97,13 @@ def patoms(single_frame_array):
         segment_width = 360 / num_segments
         # skip over and don't save/return patoms that take up 70% or more of the array pixel number
         # only included as my laptop does not have ability to handle large volumes of data
-        if i.shape[0] >= ((single_frame_array.shape[0] * single_frame_array.shape[1]) * 0.7):
-            pass
-        # ignore patoms that are less than 4 pixels in size (this is 1/1000 of the input array)
-        elif i.shape[0] <= 4:
+        # if i.shape[0] >= ((single_frame_array.shape[0] * single_frame_array.shape[1]) * 0.7):
+        #     pass
+        # # ignore patoms that are less than 2 pixels in size (this is 1/2000 of the input array) (skipping detail but laptop can't proccess otherwise)
+        if i.shape[0] <= 3:
             pass
         else:
+
             x_vals = i[:,1]; y_vals = i[:,2]
             
             x_mean = np.floor(x_vals.mean()); y_mean = np.floor(y_vals.mean())
@@ -102,7 +115,7 @@ def patoms(single_frame_array):
             adj_denom_y = np.where(denominator_y == 0, 1, denominator_y)
             norm_y = 2 * ((y_vals - y_vals.min()) / adj_denom_y) - 1
             
-            colours = (i[:,0]/ 255.0)
+            colours = i[:,0]
             
             angle_deg = (np.degrees(np.arctan2(center_y - y_mean, x_mean - center_x)) + 360) % 360
             angle_clockwise_from_north = (90 - angle_deg) % 360

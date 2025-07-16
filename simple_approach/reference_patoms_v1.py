@@ -33,7 +33,7 @@ for fname in os.listdir(folder):
 print('historic data loaded')
 
 ## memory issue here - can't seem to get total number of patoms from dataset into memory and be useful
-patoms = dict(islice(patoms.items(), 500))
+#patoms = dict(islice(patoms.items(), 500))
 
 #print(patoms)
 

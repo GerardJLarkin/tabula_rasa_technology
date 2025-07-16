@@ -27,7 +27,7 @@ for i in range(0,50,1):
     print('sequence num:',i)
     sequence = dataset[i]
     for j in range(0,20,1):
-        frame = sequence[j]
+        frame = sequence[j]/255.00
         out_patoms = patoms(frame)
         for i in out_patoms:
             # save patoms to disk
