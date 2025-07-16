@@ -66,6 +66,24 @@ with open(root+'/vrlv4.pkl', 'rb') as fv:
 
 vrlvs = [vrlv0, vrlv1, vrlv2, vrlv3, vrlv4]
 
+## load group ids dictionaries
+with open(root+'/group_dict0.pkl', 'rb') as g:
+    group_dict0 = pickle.load(g)
+with open(root+'/group_dict1.pkl', 'rb') as g:
+    group_dict1 = pickle.load(g)
+with open(root+'/group_dict2.pkl', 'rb') as g:
+    group_dict2 = pickle.load(g)
+with open(root+'/group_dict3.pkl', 'rb') as g:
+    group_dict3 = pickle.load(g)
+with open(root+'/group_dict4.pkl', 'rb') as g:
+    group_dict4 = pickle.load(g)
+
+grps = [group_dict0, group_dict1, group_dict2, group_dict3, group_dict4]
+
+## load sequence dictionary
+with open(root+'/sequence_dict.pkl', 'rb') as s:
+    seq_dict = pickle.load(s)
+
 ## visual reference linking patoms
 def find_best_matches(
     arrays: List[np.ndarray],

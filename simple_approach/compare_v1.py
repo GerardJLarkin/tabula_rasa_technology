@@ -14,7 +14,9 @@ def compare(a: np.ndarray, b: np.ndarray) -> List[Union[int, float, Any]]:
     m, n = pos1.shape[0], pos2.shape[0]
 
     dists = np.linalg.norm(pos1[:,None,:] - pos2[None,:,:], axis=2)
-    dists_norm = (dists - dists.min()) / (dists.max() - dists.min())
+    dists_denom = dists.max() - dists.min()
+    adj_dists_denom = np.where(dists_denom == 0, 1, dists_denom)
+    dists_norm = (dists - dists.min()) / adj_dists_denom
     pos_sim = dists_norm.mean()
     
     # get normalised colour values

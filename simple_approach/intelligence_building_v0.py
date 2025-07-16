@@ -6,6 +6,7 @@ from time import perf_counter
 from typing import Callable, List, Tuple, Set
 from itertools import product
 import pickle
+from collections import defaultdict
 
 start = perf_counter()
 
@@ -47,6 +48,16 @@ vrlv4 = dict.fromkeys(vrlv_keys, 0.0)
 
 # del objects to free up memory
 del ref_ids; del vrlp_keys; del segments; del magnitudes; del vectors; del vrlv_keys
+
+# instatiate group dictionary
+group_dict0 = defaultdict(float)
+group_dict1 = defaultdict(float)
+group_dict2 = defaultdict(float)
+group_dict3 = defaultdict(float)
+group_dict4 = defaultdict(float)
+
+# instatiate sequence dictionary
+sequence_dict = defaultdict(float)
 
 # use the same input dataset as per the compartor CNN-LSTM model
 data = np.load('mnist_test_seq.npy')
@@ -91,14 +102,17 @@ for ix in range(0,50,1):
             frame0 = seq[j-4]
             seq_out_patoms0 = patoms(frame0)
             best_matches0 = find_best_matches(seq_out_patoms0, ref_patoms, compare)
+            ref_ids0 = sorted([str(i[0]) for i in best_matches0])
+            group0_id = ','.join(ref_ids0)
+            group_dict0[group0_id] += 0.0000001
+            print(ref_ids0)
             if prev0 is not None:
                 cross0 = [i for i in product(prev0, best_matches0)]
                 matches0 = [str(i[0][0])+str(i[1][0]) for i in cross0]
                 for i in matches0:
                     vrlp0[i] += 0.0000001
                 direction0 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross0]
-                magnitude0 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
-                                        for i in cross0]
+                magnitude0 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross0]
                 vectors0 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches0, direction0, magnitude0)]
                 for i in vectors0:
                     vrlv0[i] += 0.0000001
@@ -107,14 +121,16 @@ for ix in range(0,50,1):
             frame1 = seq[j-3]
             seq_out_patoms1 = patoms(frame1)
             best_matches1 = find_best_matches(seq_out_patoms1, ref_patoms, compare)
+            ref_ids1 = sorted([str(i[0]) for i in best_matches1])
+            group1_id = ','.join(ref_ids1)
+            group_dict1[group1_id] += 0.0000001
             if prev1 is not None:
                 cross1 = [i for i in product(prev1, best_matches1)]
                 matches1 = [str(i[0][0])+str(i[1][0]) for i in cross1]
                 for i in matches1:
                     vrlp1[i] += 0.0000001
                 direction1 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross1]
-                magnitude1 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
-                                        for i in cross1]
+                magnitude1 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross1]
                 vectors1 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches1, direction1, magnitude1)]
                 for i in vectors1:
                     vrlv1[i] += 0.0000001
@@ -123,14 +139,16 @@ for ix in range(0,50,1):
             frame2 = seq[j-2]
             seq_out_patoms2 = patoms(frame2)
             best_matches2 = find_best_matches(seq_out_patoms2, ref_patoms, compare)
+            ref_ids2 = sorted([str(i[0]) for i in best_matches2])
+            group2_id = ','.join(ref_ids2)
+            group_dict2[group2_id] += 0.0000001
             if prev2 is not None:
                 cross2 = [i for i in product(prev2, best_matches2)]
                 matches2 = [str(i[0][0])+str(i[1][0]) for i in cross2]
                 for i in matches2:
                     vrlp2[i] += 0.0000001
                 direction2 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross2]
-                magnitude2 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
-                                        for i in cross2]
+                magnitude2 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross2]
                 vectors2 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches2, direction2, magnitude2)]
                 for i in vectors2:
                     vrlv2[i] += 0.0000001
@@ -139,14 +157,16 @@ for ix in range(0,50,1):
             frame3 = seq[j-1]
             seq_out_patoms3 = patoms(frame3)
             best_matches3 = find_best_matches(seq_out_patoms3, ref_patoms, compare)
+            ref_ids3 = sorted([str(i[0]) for i in best_matches3])
+            group3_id = ','.join(ref_ids3)
+            group_dict3[group3_id] += 0.0000001
             if prev3 is not None:
                 cross3 = [i for i in product(prev3, best_matches3)]
                 matches3 = [str(i[0][0])+str(i[1][0]) for i in cross3]
                 for i in matches3:
                     vrlp3[i] += 0.0000001
                 direction3 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross3]
-                magnitude3 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
-                                        for i in cross3]
+                magnitude3 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross3]
                 vectors3 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches3, direction3, magnitude3)]
                 for i in vectors3:
                     vrlv3[i] += 0.0000001
@@ -155,6 +175,9 @@ for ix in range(0,50,1):
             frame4 = seq[j]
             seq_out_patoms4 = patoms(frame4)
             best_matches4 = find_best_matches(seq_out_patoms4, ref_patoms, compare)
+            ref_ids4 = sorted([str(i[0]) for i in best_matches4])
+            group4_id = ','.join(ref_ids4)
+            group_dict4[group4_id] += 0.0000001
             if prev4 is not None:
                 cross4 = [i for i in product(prev4, best_matches4)]
                 matches4 = [str(i[0][0])+str(i[1][0]) for i in cross4]
@@ -167,6 +190,9 @@ for ix in range(0,50,1):
                 for i in vectors4:
                     vrlv4[i] += 0.0000001
             prev4 = best_matches4
+            
+            sequence_id = '#0#' + group0_id + '#1#' + group1_id + '#2#' + group2_id + '#3#' + group3_id + '#4#' + group4_id
+            sequence_dict[sequence_id] += 0.0000001
     
     
     e = perf_counter()
@@ -199,3 +225,19 @@ with open('vrlv3.pkl', 'wb') as f:
     pickle.dump(vrlv3, f)
 with open('vrlv4.pkl', 'wb') as f:
     pickle.dump(vrlv4, f)
+
+print('group_dict0', sys.getsizeof(group_dict0))
+with open('group_dict0.pkl', 'wb') as f:
+    pickle.dump(group_dict0, f)
+with open('group_dict1.pkl', 'wb') as f:
+    pickle.dump(group_dict1, f)
+with open('group_dict2.pkl', 'wb') as f:
+    pickle.dump(group_dict2, f)
+with open('group_dict3.pkl', 'wb') as f:
+    pickle.dump(group_dict3, f)
+with open('group_dict4.pkl', 'wb') as f:
+    pickle.dump(group_dict4, f)
+
+print('sequence_dict', sys.getsizeof(sequence_dict))
+with open('sequence_dict.pkl', 'wb') as f:
+    pickle.dump(sequence_dict, f)
