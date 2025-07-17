@@ -25,29 +25,18 @@ reference = os.path.join(root, 'reference_patoms')
 ref_patoms = [np.load(os.path.join(reference, fname), allow_pickle=True) for fname in os.listdir(reference)]
 
 ## visual reference linking patoms
-ref_ids = [str(i[0,0]) for i in ref_patoms]
-vrlp_keys = [i[0]+i[1] for i in product(ref_ids, repeat=2)]
-vrlp0 = dict.fromkeys(vrlp_keys, 0) # 61.5MB to start
-print('vrlp',sys.getsizeof(vrlp0))
-vrlp1 = dict.fromkeys(vrlp_keys, 0)
-vrlp2 = dict.fromkeys(vrlp_keys, 0)
-vrlp3 = dict.fromkeys(vrlp_keys, 0)
-vrlp4 = dict.fromkeys(vrlp_keys, 0)
+vrlp0 = defaultdict(float)
+vrlp1 = defaultdict(float)
+vrlp2 = defaultdict(float)
+vrlp3 = defaultdict(float)
+vrlp4 = defaultdict(float)
 
 ## visual reference linking vector
-segments = [f"{i[0]:0>2}"+f"{i[1]:0>2}" for i in product((range(16)), repeat=2)] # 00 to 15
-magnitudes = ['00','01','02','03','04','05','06','07','08','09'] # 00 to 09
-vectors = [i[0]+i[1] for i in product(segments, magnitudes)]
-vrlv_keys = [i[0]+i[1] for i in product(ref_ids, vectors)]
-vrlv0 = dict.fromkeys(vrlv_keys, 0.0) # 1GB to start
-print('vrlv',sys.getsizeof(vrlv0))
-vrlv1 = dict.fromkeys(vrlv_keys, 0.0)
-vrlv2 = dict.fromkeys(vrlv_keys, 0.0)
-vrlv3 = dict.fromkeys(vrlv_keys, 0.0)
-vrlv4 = dict.fromkeys(vrlv_keys, 0.0)
-
-# del objects to free up memory
-del ref_ids; del vrlp_keys; del segments; del magnitudes; del vectors; del vrlv_keys
+vrlv0 = defaultdict(float)
+vrlv1 = defaultdict(float)
+vrlv2 = defaultdict(float)
+vrlv3 = defaultdict(float)
+vrlv4 = defaultdict(float)
 
 # instatiate group dictionary
 group_dict0 = defaultdict(float)
@@ -105,7 +94,6 @@ for ix in range(0,50,1):
             ref_ids0 = sorted([str(i[0]) for i in best_matches0])
             group0_id = ','.join(ref_ids0)
             group_dict0[group0_id] += 0.0000001
-            print(ref_ids0)
             if prev0 is not None:
                 cross0 = [i for i in product(prev0, best_matches0)]
                 matches0 = [str(i[0][0])+str(i[1][0]) for i in cross0]
@@ -184,8 +172,7 @@ for ix in range(0,50,1):
                 for i in matches4:
                     vrlp4[i] += 0.0000001
                 direction4 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross4]
-                magnitude4 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" 
-                                        for i in cross4]
+                magnitude4 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross4]
                 vectors4 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches4, direction4, magnitude4)]
                 for i in vectors4:
                     vrlv4[i] += 0.0000001

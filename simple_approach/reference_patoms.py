@@ -23,106 +23,20 @@ from tabula_rasa_technology.simple_approach.patom_groups import group_arrays
 
 # Getting all the numpy arrays .npy files based on matching pattern (*.npy)
 file_paths = glob.glob(os.path.join(folder, '*.npy'))
+file_paths = file_paths[:1000]
 # set a similarity threshold
 sim_threshold = 0.25
 
 groups = group_arrays(file_paths, compare, sim_threshold)
-
-# # Import arrays from folder and store them as a dict
-# patoms = {}
-# for fname in os.listdir(folder):
-#     if not fname.endswith('.npy'):
-#         continue
-#     arr = np.load(os.path.join(folder, fname), allow_pickle=True)
-#     patom_id = str(arr[0,0])
-#     patoms[patom_id] = arr
-# print('historic data loaded')
-
-# ## memory issue here - can't seem to get total number of patoms from dataset into memory and be useful
-# patoms = dict(islice(patoms.items(), 2000))
-
-# #print(patoms)
-
-# ids = list(patoms.keys())
-# arrays = [patoms[i] for i in ids]
-# idx_pairs = [(i, j) for i in range(len(ids)) for j in range(i+1, len(ids))]
-
-# # set a similarity threshold
-# sim_threshold = 0.25
-# s = perf_counter()
-# with Pool(processes=4) as pool:
-#     tasks = ((arrays[i], arrays[j]) for i,j in idx_pairs)
-#     results = pool.starmap(compare, tasks, chunksize=1000)
-
-#     similar_patoms = [(one, two) for one, two, score in results if score <= sim_threshold]
-
-# print('sim_patoms', len(similar_patoms))
-# # check which patoms have not been added to the similar patoms lists
-# not_similar_patoms = []
-# for i in ids:
-#     if not any(i in sublist for sublist in similar_patoms):
-#         not_similar_patoms.append(i)
-
-# # create a reference patom for each of the patom ids in the not similar list
-# # 4 columns (0, 1, 2, 3)
-# # row 1 is id, centroid coordinates and segment
-# # row 2 is min and max x and y values for original x and y coordinates in the frame
-# # remaining rows are the normalised x and y values and the normalised colour at each coordinate
-
-# # get non similar patoms from dictionary of patoms
-# non_sim_patom = [patoms[i] for i in not_similar_patoms]
-# print('non sim patoms', len(non_sim_patom))
-# # select only required columns
-# for pat in non_sim_patom:
-#     np.save(f'reference_patoms/patom_{str(pat[0,0])}', pat)
-
-# class UnionFind:
-#     def __init__(self):
-#         # maps each node → its parent in the forest
-#         self.parent = {}
-
-#     def find(self, x):
-#         # initialize x’s parent to itself if unseen
-#         if self.parent.setdefault(x, x) != x:
-#             # path-compression
-#             self.parent[x] = self.find(self.parent[x])
-#         return self.parent[x]
-
-#     def union(self, x, y):
-#         rx, ry = self.find(x), self.find(y)
-#         if rx != ry:
-#             # attach one root under the other
-#             self.parent[ry] = rx
-
-
-# def extract_groups(pairs):
-#     """
-#     pairs: list of (id1, id2)
-#     returns: list of connected components (each a list of ids)
-#     """
-#     uf = UnionFind()
-#     # 1) Merge each pair
-#     for a, b in pairs:
-#         uf.union(a, b)
-
-#     # 2) Gather nodes under their ultimate root
-#     groups = {}
-#     for node in uf.parent:
-#         root = uf.find(node)
-#         groups.setdefault(root, []).append(node)
-
-#     return list(groups.values())
-
-# groups = extract_groups(similar_patoms)
 
 print('groups', len(groups))
 
 for group in groups:
     patoms = [np.load(os.path.join(folder, fname), allow_pickle=True) for fname in group]
     # need to split each patom into 3 parts: 1st row, 2nd row, all other rows
-    group_first_rows = [patoms[id][1,:] for id in group]
-    group_second_rows = [patoms[id][2,:] for id in group]
-    group_patoms = [patoms[id][2:,:3] for id in group]
+    group_first_rows = [pat[1,:] for pat in patoms]
+    group_second_rows = [pat[2,:] for pat in patoms]
+    group_patoms = [pat[2:,:3] for pat in patoms]
     num_patoms = len(group_patoms)
     
     # stack first rows to create a singluar group patom numpy array
