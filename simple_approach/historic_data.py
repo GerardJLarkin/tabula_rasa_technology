@@ -13,7 +13,7 @@ start = perf_counter()
 sys.path.append('/home/gerard/Desktop/capstone_project')
 sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
 
-from tabula_rasa_technology.simple_approach.patoms_v1 import patoms
+from tabula_rasa_technology.simple_approach.patoms import patoms
 
 # number of sequences to import
 n = 100

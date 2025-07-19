@@ -16,8 +16,8 @@ sys.path.append('/home/gerard/Desktop/capstone_project')
 sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
 historic_data = sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach/historic_data')
 
-from tabula_rasa_technology.simple_approach.compare_v1 import compare
-from tabula_rasa_technology.simple_approach.patoms_v1 import patoms
+from tabula_rasa_technology.simple_approach.compare import compare
+from tabula_rasa_technology.simple_approach.patoms import patoms
 
 root = os.path.dirname(os.path.abspath(__file__))
 # load reference patoms
@@ -53,18 +53,19 @@ data = np.load('mnist_test_seq.npy')
 # swap the axes representing the number of frames and number of data samples.
 sequence = np.swapaxes(data, 0, 1)
 # due to memory/processing limitations only use the first 100 of the 10000 total examples.
-sequence = sequence[:50, ...]
+n = 5
+sequence = sequence[:n, ...]
 
 ## visual reference linking patoms
 def find_best_matches(
     arrays: List[np.ndarray],
     references: List[np.ndarray],
-    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[str, str, float]]) -> Set[Tuple[str, float, float, float]]:
+    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[float, float, float]]) -> Set[Tuple[float, float, float, float]]:
     
-    matches: Set[Tuple[str, float, float, float]] = set()
+    matches: Set[Tuple[float, float, float, float]] = set()
     for arr in arrays:
         best_score = float('inf')
-        best_ref_id: str = None
+        best_ref_id: float = None
         for ref in references:
             id1, id2, score = compare_func(arr, ref)
             if score < best_score:
@@ -79,7 +80,7 @@ def find_best_matches(
     return matches
 
 st1 = perf_counter()
-for ix in range(0,50,1):
+for ix in range(0,n,1):
     s = perf_counter()
     seq = sequence[ix]
     
@@ -91,27 +92,49 @@ for ix in range(0,50,1):
             frame0 = seq[j-4]
             seq_out_patoms0 = patoms(frame0)
             best_matches0 = find_best_matches(seq_out_patoms0, ref_patoms, compare)
-            ref_ids0 = sorted([str(i[0]) for i in best_matches0])
-            group0_id = ','.join(ref_ids0)
-            group_dict0[group0_id] += 0.0000001
+            
+            ref_ids0 = np.array(sorted([i[0] for i in best_matches0]), dtype=np.float32).tobytes() # consider how to recover the ids?
+            group_dict0[ref_ids0] += 0.0000001
+            
             if prev0 is not None:
                 cross0 = [i for i in product(prev0, best_matches0)]
-                matches0 = [str(i[0][0])+str(i[1][0]) for i in cross0]
+                
+                matches0 = [np.array([i[0][0], i[1][0]], dtype=np.float32).tobytes() for i in cross0] # length of each byte object is 2
+                # mat_test = [np.array([i[0][0], i[1][0]]) for i in cross0]
                 for i in matches0:
                     vrlp0[i] += 0.0000001
-                direction0 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross0]
-                magnitude0 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross0]
-                vectors0 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches0, direction0, magnitude0)]
+                
+                direction0 = [np.array([i[0][3], i[1][3]], dtype=np.float32).tobytes() for i in cross0] # length of each byte object is 2
+                # dir_test = [np.array([i[0][3], i[1][3]]) for i in cross0]
+                magnitude0 = [np.array([np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2) / 89.1], dtype=np.float32).tobytes() for i in cross0] # length of each byte object is 1
+                # mag_test = [np.array([np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2) / 89.1]) for i in cross0]
+                vectors0 = [a + b + c for a, b, c in zip(matches0, direction0, magnitude0)]
+                # vec_test = [[a, b, c] for a, b, c in zip(mat_test, dir_test, mag_test)]; print('vec_test',vec_test[0])
+                
+                # lengths = [2, 2, 1]
+                # series_list = []
                 for i in vectors0:
                     vrlv0[i] += 0.0000001
+
+                #     offset = 0
+                #     for count in lengths:
+                #         n_bytes = count * 4
+                #         chunk = i[offset:offset + n_bytes]
+                #         labels = np.frombuffer(chunk, dtype=np.float32)
+                #         series_list.append(labels)
+                #         offset += n_bytes
+                # print('ser_list',series_list[0:3])
+                # print('exact match', vec_test[0][0] == series_list[0][0])
+            
             prev0 = best_matches0
 
             frame1 = seq[j-3]
             seq_out_patoms1 = patoms(frame1)
             best_matches1 = find_best_matches(seq_out_patoms1, ref_patoms, compare)
-            ref_ids1 = sorted([str(i[0]) for i in best_matches1])
-            group1_id = ','.join(ref_ids1)
-            group_dict1[group1_id] += 0.0000001
+            
+            ref_ids1 = np.array(sorted([i[0] for i in best_matches1])).tobytes()
+            group_dict1[ref_ids1] += 0.0000001
+            
             if prev1 is not None:
                 cross1 = [i for i in product(prev1, best_matches1)]
                 matches1 = [str(i[0][0])+str(i[1][0]) for i in cross1]
@@ -127,9 +150,10 @@ for ix in range(0,50,1):
             frame2 = seq[j-2]
             seq_out_patoms2 = patoms(frame2)
             best_matches2 = find_best_matches(seq_out_patoms2, ref_patoms, compare)
-            ref_ids2 = sorted([str(i[0]) for i in best_matches2])
-            group2_id = ','.join(ref_ids2)
-            group_dict2[group2_id] += 0.0000001
+            
+            ref_ids2 = np.array(sorted([i[0] for i in best_matches2])).tobytes()
+            group_dict2[ref_ids2] += 0.0000001
+            
             if prev2 is not None:
                 cross2 = [i for i in product(prev2, best_matches2)]
                 matches2 = [str(i[0][0])+str(i[1][0]) for i in cross2]
@@ -145,9 +169,10 @@ for ix in range(0,50,1):
             frame3 = seq[j-1]
             seq_out_patoms3 = patoms(frame3)
             best_matches3 = find_best_matches(seq_out_patoms3, ref_patoms, compare)
-            ref_ids3 = sorted([str(i[0]) for i in best_matches3])
-            group3_id = ','.join(ref_ids3)
-            group_dict3[group3_id] += 0.0000001
+            
+            ref_ids3 = np.array(sorted([i[0] for i in best_matches3])).tobytes()
+            group_dict3[ref_ids3] += 0.0000001
+            
             if prev3 is not None:
                 cross3 = [i for i in product(prev3, best_matches3)]
                 matches3 = [str(i[0][0])+str(i[1][0]) for i in cross3]
@@ -163,9 +188,10 @@ for ix in range(0,50,1):
             frame4 = seq[j]
             seq_out_patoms4 = patoms(frame4)
             best_matches4 = find_best_matches(seq_out_patoms4, ref_patoms, compare)
-            ref_ids4 = sorted([str(i[0]) for i in best_matches4])
-            group4_id = ','.join(ref_ids4)
-            group_dict4[group4_id] += 0.0000001
+            
+            ref_ids4 = np.array(sorted([i[0] for i in best_matches4])).tobytes()
+            group_dict4[ref_ids4] += 0.0000001
+            
             if prev4 is not None:
                 cross4 = [i for i in product(prev4, best_matches4)]
                 matches4 = [str(i[0][0])+str(i[1][0]) for i in cross4]
@@ -178,7 +204,7 @@ for ix in range(0,50,1):
                     vrlv4[i] += 0.0000001
             prev4 = best_matches4
             
-            sequence_id = '#0#' + group0_id + '#1#' + group1_id + '#2#' + group2_id + '#3#' + group3_id + '#4#' + group4_id
+            sequence_id = ref_ids0 + ref_ids1 + ref_ids2 + ref_ids3 + ref_ids4
             sequence_dict[sequence_id] += 0.0000001
     
     

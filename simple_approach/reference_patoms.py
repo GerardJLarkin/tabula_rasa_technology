@@ -18,7 +18,7 @@ historic_data = sys.path.append('/home/gerard/Desktop/capstone_project/simple_ap
 root = os.path.dirname(os.path.abspath(__file__))
 folder = os.path.join(root, 'historic_data')
 
-from tabula_rasa_technology.simple_approach.compare_v1 import compare
+from tabula_rasa_technology.simple_approach.compare import compare
 from tabula_rasa_technology.simple_approach.patom_groups import group_arrays
 
 # Getting all the numpy arrays .npy files based on matching pattern (*.npy)
