@@ -48,12 +48,15 @@ group_dict4 = defaultdict(float)
 # instatiate sequence dictionary
 sequence_dict = defaultdict(float)
 
+# instatiate sequence len (of each byte object) dictionary
+sequence_dict_len = defaultdict(list)
+
 # use the same input dataset as per the compartor CNN-LSTM model
 data = np.load('mnist_test_seq.npy')
 # swap the axes representing the number of frames and number of data samples.
 sequence = np.swapaxes(data, 0, 1)
 # due to memory/processing limitations only use the first 100 of the 10000 total examples.
-n = 5
+n = 2
 sequence = sequence[:n, ...]
 
 ## visual reference linking patoms
@@ -86,7 +89,7 @@ for ix in range(0,n,1):
     
     prev0 = None; prev1 = None; prev2 = None; prev3 = None; prev4 = None
     for j in range(0,20,1):
-        if (j < 4) | (j > 20):
+        if (j < 4): # | (j > 20):
             continue
         else:
             frame0 = seq[j-4]
@@ -137,12 +140,12 @@ for ix in range(0,n,1):
             
             if prev1 is not None:
                 cross1 = [i for i in product(prev1, best_matches1)]
-                matches1 = [str(i[0][0])+str(i[1][0]) for i in cross1]
+                matches1 = [np.array([i[0][0], i[1][0]], dtype=np.float32).tobytes() for i in cross1]
                 for i in matches1:
                     vrlp1[i] += 0.0000001
-                direction1 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross1]
-                magnitude1 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross1]
-                vectors1 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches1, direction1, magnitude1)]
+                direction1 = [np.array([i[0][3], i[1][3]], dtype=np.float32).tobytes() for i in cross1]
+                magnitude1 = [np.array([np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2) / 89.1], dtype=np.float32).tobytes() for i in cross1]
+                vectors1 = [a + b + c for a, b, c in zip(matches1, direction1, magnitude1)]
                 for i in vectors1:
                     vrlv1[i] += 0.0000001
             prev1 = best_matches1
@@ -152,16 +155,17 @@ for ix in range(0,n,1):
             best_matches2 = find_best_matches(seq_out_patoms2, ref_patoms, compare)
             
             ref_ids2 = np.array(sorted([i[0] for i in best_matches2])).tobytes()
+            print('ref_ids2',len(ref_ids2))
             group_dict2[ref_ids2] += 0.0000001
             
             if prev2 is not None:
                 cross2 = [i for i in product(prev2, best_matches2)]
-                matches2 = [str(i[0][0])+str(i[1][0]) for i in cross2]
+                matches2 = [np.array([i[0][0], i[1][0]], dtype=np.float32).tobytes() for i in cross2]
                 for i in matches2:
                     vrlp2[i] += 0.0000001
-                direction2 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross2]
-                magnitude2 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross2]
-                vectors2 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches2, direction2, magnitude2)]
+                direction2 = [np.array([i[0][3], i[1][3]], dtype=np.float32).tobytes() for i in cross2]
+                magnitude2 = [np.array([np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2) / 89.1], dtype=np.float32).tobytes() for i in cross2]
+                vectors2 = [a + b + c for a, b, c in zip(matches2, direction2, magnitude2)]
                 for i in vectors2:
                     vrlv2[i] += 0.0000001
             prev2 = best_matches2
@@ -171,16 +175,17 @@ for ix in range(0,n,1):
             best_matches3 = find_best_matches(seq_out_patoms3, ref_patoms, compare)
             
             ref_ids3 = np.array(sorted([i[0] for i in best_matches3])).tobytes()
+            print('ref_ids3',len(ref_ids3))
             group_dict3[ref_ids3] += 0.0000001
             
             if prev3 is not None:
                 cross3 = [i for i in product(prev3, best_matches3)]
-                matches3 = [str(i[0][0])+str(i[1][0]) for i in cross3]
+                matches3 = [np.array([i[0][0], i[1][0]], dtype=np.float32).tobytes() for i in cross3]
                 for i in matches3:
                     vrlp3[i] += 0.0000001
-                direction3 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross3]
-                magnitude3 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross3]
-                vectors3 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches3, direction3, magnitude3)]
+                direction3 = [np.array([i[0][3], i[1][3]], dtype=np.float32).tobytes() for i in cross3]
+                magnitude3 = [np.array([np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2) / 89.1], dtype=np.float32).tobytes() for i in cross3]
+                vectors3 = [a + b + c for a, b, c in zip(matches3, direction3, magnitude3)]
                 for i in vectors3:
                     vrlv3[i] += 0.0000001
             prev3 = best_matches3
@@ -190,22 +195,25 @@ for ix in range(0,n,1):
             best_matches4 = find_best_matches(seq_out_patoms4, ref_patoms, compare)
             
             ref_ids4 = np.array(sorted([i[0] for i in best_matches4])).tobytes()
+            print('ref_ids4',len(ref_ids4))
             group_dict4[ref_ids4] += 0.0000001
             
             if prev4 is not None:
                 cross4 = [i for i in product(prev4, best_matches4)]
-                matches4 = [str(i[0][0])+str(i[1][0]) for i in cross4]
+                matches4 = [np.array([i[0][0], i[1][0]], dtype=np.float32).tobytes() for i in cross4]
                 for i in matches4:
                     vrlp4[i] += 0.0000001
-                direction4 = [f"{int(i[0][3]):0>2}"+f"{int(i[1][3]):0>2}" for i in cross4]
-                magnitude4 = [f"{int(round((np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2)) / 89.1,1)*10):0>2}" for i in cross4]
-                vectors4 = ['0.'+a.split('0.',2)[-1]+b+c for a, b, c in zip(matches4, direction4, magnitude4)]
+                direction4 = [np.array([i[0][3], i[1][3]], dtype=np.float32).tobytes() for i in cross4]
+                magnitude4 = [np.array([np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2) / 89.1], dtype=np.float32).tobytes() for i in cross4]
+                vectors4 = [a + b + c for a, b, c in zip(matches4, direction4, magnitude4)]
                 for i in vectors4:
                     vrlv4[i] += 0.0000001
             prev4 = best_matches4
             
             sequence_id = ref_ids0 + ref_ids1 + ref_ids2 + ref_ids3 + ref_ids4
             sequence_dict[sequence_id] += 0.0000001
+            ## separate dictionary to hold the lengths of each of the ref group ids
+            sequence_dict_len[sequence_id] = [len(ref_ids0), len(ref_ids1), len(ref_ids2), len(ref_ids3), len(ref_ids4)]
     
     
     e = perf_counter()
@@ -254,3 +262,7 @@ with open('group_dict4.pkl', 'wb') as f:
 print('sequence_dict', sys.getsizeof(sequence_dict))
 with open('sequence_dict.pkl', 'wb') as f:
     pickle.dump(sequence_dict, f)
+
+print('sequence_dict_len', sys.getsizeof(sequence_dict_len))
+with open('sequence_dict_len.pkl', 'wb') as f:
+    pickle.dump(sequence_dict_len, f)

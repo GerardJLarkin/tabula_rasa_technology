@@ -5,7 +5,7 @@ import glob
 import sys
 from time import perf_counter
 from typing import Iterable, Callable, Generator, Any, Tuple
-from typing import Callable, List, Tuple, Set
+from typing import Callable, List, Tuple, Set, Dict
 from itertools import product, islice
 import pickle
 
@@ -15,8 +15,8 @@ start = perf_counter()
 sys.path.append('/home/gerard/Desktop/capstone_project')
 sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
 
-from tabula_rasa_technology.simple_approach.compare_v1 import compare
-from tabula_rasa_technology.simple_approach.patoms_v1 import patoms
+from tabula_rasa_technology.simple_approach.compare import compare
+from tabula_rasa_technology.simple_approach.patoms import patoms
 
 root = os.path.dirname(os.path.abspath(__file__))
 
@@ -84,16 +84,41 @@ grps = [group_dict0, group_dict1, group_dict2, group_dict3, group_dict4]
 with open(root+'/sequence_dict.pkl', 'rb') as s:
     seq_dict = pickle.load(s)
 
+## load sequence length dictionary
+with open(root+'/sequence_dict_len.pkl', 'rb') as l:
+    len_dict = pickle.load(l)
+
+
+# seq_dict_test = dict(islice(seq_dict.items(), 1))
+
+# for key, value in seq_dict_test.items():
+#     lengths = len_dict[key]       # [n0,n1,n2,n3,n4]
+#     # Decode the five blobs
+#     blobs = []
+#     offset = 0
+#     for count in lengths:
+#         print('dict byte cnt',count)
+#         nbytes = count # float32 ⇒ 4 bytes each
+#         print('nbytes', nbytes)          
+#         chunk = key[offset : offset + nbytes]
+#         print('chunk len', len(chunk))
+#         blobs.append(chunk)
+#         print(offset)
+#         offset += nbytes
+#     print('len dict',lengths)
+#     print('blob len', [len(i) for i in blobs])
+
+
 ## visual reference linking patoms
 def find_best_matches(
     arrays: List[np.ndarray],
     references: List[np.ndarray],
-    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[str, str, float]]) -> Set[Tuple[str, float, float, float]]:
+    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[float, float, float]]) -> Set[Tuple[float, float, float, float]]:
     
-    matches: Set[Tuple[str, float, float, float]] = set()
+    matches: Set[Tuple[float, float, float, float]] = set()
     for arr in arrays:
         best_score = float('inf')
-        best_ref_id: str = None
+        best_ref_id: float = None
         for ref in references:
             id1, id2, score = compare_func(arr, ref)
             if score < best_score:
@@ -107,135 +132,159 @@ def find_best_matches(
     
     return matches
 
-start_prediction = []
+## function to compare the byte objects that represent the ref group ids
+def similarity_ratio(a: bytes, b: bytes) -> float:
+    matches = sum(x == y for x, y in product(a, b))
+    return matches / (len(a) * len(b))
+
+## find sequence that has the highest match against the 2 new ref group ids that are generated from fresh data
+## ensures that when this function is used iteratively that any new subsets of ref group id pairs are identified
+## they come from a point in the sequence that is less than or equal to the current current sequence index (forward recollection)
+def find_best_sequence(
+    d: Dict[bytes, float],
+    length_map: Dict[bytes, List[int]],
+    new_blob_A: bytes,
+    new_blob_B: bytes,
+    seq_ind: int = 0    
+) -> Tuple[bytes, int, float, float]: #
+    """
+    Returns a tuple (best_key, best_pair_index, best_similarity, best_value)
+    
+    - best_key: the 5-blob bytes key in which we found the best-matching pair  
+    - best_pair_index: i such that the match was against [blob_i, blob_{i+1}]  
+    - best_similarity: the average of the two ordered similarity ratios  
+    - best_value: d[best_key], used to break ties
+    """
+    best = None  # will hold (sim, value, key, index)
+    
+    for key, value in d.items():
+        lengths = length_map[key]
+        # Decode the five blobs
+        blobs = []
+        offset = 0
+        for count in lengths:
+            chunk = key[offset : offset + count]
+            blobs.append(chunk)
+            offset += count
+
+        # Slide over 3 of the 4 consecutive 2-blob windows (potentially ignoring the last frame in the sequence - why do i have to do this?)
+        for i in range(len(blobs) - 2):
+            blob_i   = blobs[i]
+            blob_i1  = blobs[i+1]
+            # ordered similarity
+            sim1 = similarity_ratio(new_blob_A, blob_i)
+            sim2 = similarity_ratio(new_blob_B, blob_i1)
+            avg_sim = (sim1 + sim2) / 2.0
+            
+            candidate = (avg_sim, value, key, i+2)
+            # keep the largest (sim first, then value)
+            if (best is None) or ((candidate[:2] > best[:2]) and (seq_ind <= best[3])):
+                best = candidate
+    
+    best_sim, best_val, best_key, best_index = best
+    return best_key, best_index, best_sim, best_val
+
+
+## set next frame identification variables
+num_frames = 7
+
+## start prediction
 st1 = perf_counter()
-# this loop only looks at a single sequence set imported above
-for ix in range(0,1,1):
-    s = perf_counter()
-    seq = sequence[ix]
-    num_frames = 10 # this is the frame after which we will predict the next 4 frames (fingers crossed)
-    working_memory_seq = 0
-    for j in range(0,20,1):
-        frame = seq[j]
+prev_best_matches = None
+prev_ref_group_ids = []
+
+for j in range(20):
+    if j == num_frames:
+        break
+    else:
+        frame = sequence[0][j]
         seq_out_patoms = patoms(frame)
         best_matches = find_best_matches(seq_out_patoms, ref_patoms, compare)
-        if num_frames == j:
-            # print('work mem', working_memory_seq, 'seq num', j)
-            # print('best matches', best_matches)
+        
+        current_ref_group_ids = np.array(sorted([i[0] for i in best_matches]), dtype=np.float32).tobytes() # consider how to recover the ids?
+        
+        prev_ref_group_ids.append(current_ref_group_ids)
+        
+        if prev_best_matches is not None:
+            cross = [i for i in product(prev_best_matches, best_matches)]
+            matches = [np.array([i[0][0], i[1][0]], dtype=np.float32).tobytes() for i in cross] # length of each byte object is 2
+            direction = [np.array([i[0][3], i[1][3]], dtype=np.float32).tobytes() for i in cross] # length of each byte object is 2
+            magnitude = [np.array([np.sqrt((i[0][1] - i[1][1])**2 + (i[0][2]-i[1][2])**2) / 89.1], dtype=np.float32).tobytes() for i in cross] # length of each byte object is 1
+            vectors = [a + b + c for a, b, c in zip(matches, direction, magnitude)]
             
-            # call the working memory frame relevant vrlp and vrlv files
-            # given that we have the left hand side of the vrlv key pattern (second half of key), get all matching right hand side
-            vrlp = vrlps[working_memory_seq] 
-            vrlv = vrlvs[working_memory_seq] 
-            for i in best_matches:
-                # get all keys from vrlp where ref id in the best match is the first half of the key id-id pair, and has the highest value
-                next_sequence_patom = {k: v for k, v in vrlp.items() if k.startswith(str(i[0]))}
-                next_sequence_patom = list(sorted(next_sequence_patom.items(), key=lambda v: v[1], reverse=True))[0]
-                #print(next_sequence_patom)
-                
-                # get all keys from vrlv where ref id in the best match is the start of the key, with the highest value
-                next_sequence_vector = {k: v for k, v in vrlv.items() if k.startswith(str(i[0]))}
-                next_sequence_vector = list(sorted(next_sequence_vector.items(), key=lambda v: v[1], reverse=True))[0]
-                #print(next_sequence_vector)
-                
-                # is this the correct data to use to build the next predictive sequence?
-                data_to_build_from = [working_memory_seq, next_sequence_patom, next_sequence_vector]
-                start_prediction.append(data_to_build_from)
-
-        working_memory_seq = (working_memory_seq + 1) % 5
-
-print(start_prediction)
-
-## need to predict next in sequence from start sequence data
-## need to build each of the frames that created from the ref patoms in each of 
-## the predicted frames, starting with the start sequence data
-next_prediction = None
-for i in range(1, 5):
-    for j in start_prediction[1]:
-        next_sequence_patom = {k:v for k, v in vrlp.items() if k.startswith(j[0])}
+            # lengths = [2, 2, 1]
+            # series_list = []
+            #     offset = 0
+            #     for count in lengths:
+            #         n_bytes = count * 4
+            #         chunk = i[offset:offset + n_bytes]
+            #         labels = np.frombuffer(chunk, dtype=np.float32)
+            #         series_list.append(labels)
+            #         offset += n_bytes
+            # print('ser_list',series_list[0:3])
+            # print('exact match', vec_test[0][0] == series_list[0][0])
+        
+        prev_best_matches = best_matches
 
 
-    #print(final_frame_compare_output)
-    # create vectors
-    # get next set of patoms
-#     curr_seq_ref_patoms = [i[0] for i in final_frame_compare_output]
-#     #print('curr', curr_seq_ref_patoms)
-#     # find all next sequence ref patoms based on curr sequence ref patoms
-#     next_seq_ref_patoms = []
-#     for i in curr_seq_ref_patoms:
-#         next_seq_keys = [(i, k, v) for k, v in vrlp.items() if k[:6] == i]
-#         next_seq_key = max(next_seq_keys, key=lambda i:i[2])
-#         next_seq_ref_patoms.append(next_seq_key[1][-6:])
-#     #print('next',next_seq_ref_patoms)
-#     # rebuld array to print as image
-#     # need translation vector
-#     # need centroid from set of patoms from last input frame
-#     next_ref_patoms = []
-#     for ix, i in enumerate(next_seq_ref_patoms):
-#         next_patom = dict_ref_patom[i]
-#         #print('nxtp', next_patom)
-#         # reverse normalisation to find correct x, y positions
-#         # print(next_patom[:,2] * (64 / 2))
-#         x_vals = next_patom[:,1] * (64 / 2)
-#         pseudo_orig_x_vals = final_frame_compare_output[ix][3] + x_vals
-#         print('pseudo x vals',pseudo_orig_x_vals)
-#         pseudo_orig_x_vals = pseudo_orig_x_vals.astype('int64').reshape(next_patom.shape[0],1)
-#         y_vals = next_patom[:,2] * (64 / 2)
-#         pseudo_orig_y_vals = final_frame_compare_output[ix][4] + y_vals
-#         print('pseudo y vals',pseudo_orig_y_vals)
-#         pseudo_orig_y_vals = pseudo_orig_y_vals.astype('int64').reshape(next_patom.shape[0],1)
-#         pseudo_orig_array = np.hstack((pseudo_orig_x_vals, pseudo_orig_y_vals, next_patom[:,3].reshape(next_patom.shape[0],1)))
-#         print('pseudo',pseudo_orig_array)
-#         print(pseudo_orig_array.max())
-#         next_ref_patoms.append(pseudo_orig_array)
+## new attempt to loop through and predict frames
+max_frames_to_predict = 5
+frame_number = 0
+predicted_frames = []
 
-#     array_image = []
+while frame_number < max_frames_to_predict:
+    best_sequence = find_best_sequence(seq_dict, len_dict, prev_ref_group_ids[-2], prev_ref_group_ids[-1])
+    lengths = len_dict[best_sequence[0]]
+    predicted_seq_index = best_sequence[1]
+    sequence_value = best_sequence[3]
+    # split best matched sequence to get the ref group ids at the index after the indexes identified in the best matched sequence
+    seq_blobs = []
+    offset = 0
+    for count in lengths:
+        chunk = best_sequence[0][offset : offset + count]
+        seq_blobs.append(chunk)
+        offset += count
+    ## this line here is the current 'predicted' frame
+    current_seq_ref_group_ids = seq_blobs[predicted_seq_index]
+    prev_ref_group_ids.append(current_seq_ref_group_ids)
+    
+    prev_sequence_value = None
+    ## if its the first loop iteration create the next sequence based on the first iteration
+    if prev_sequence_value is None:
+        next_best_sequence = find_best_sequence(seq_dict, len_dict, prev_ref_group_ids[-2], prev_ref_group_ids[-1], predicted_seq_index)
+        next_lengths = len_dict[next_best_sequence[0]]
+        next_predicted_seq_index = next_best_sequence[1]
+        next_sequence_value = next_best_sequence[3]
+        # split best matched sequence to get the ref group ids at the index after the indexes identified in the best matched sequence
+        next_seq_blobs = []
+        next_offset = 0
+        for next_count in next_lengths:
+            next_chunk = next_best_sequence[0][next_offset : next_offset + next_count]
+            next_seq_blobs.append(next_chunk)
+            next_offset += next_count
+        ## this line here is the current 'predicted' frame
+        next_current_seq_ref_group_ids = next_seq_blobs[next_predicted_seq_index]
+        prev_ref_group_ids.append(next_current_seq_ref_group_ids)
 
-# def merge_point_lists(
-#     point_lists: List[np.ndarray],
-#     shape: tuple[int, int],
-#     mode: str = "sum"  # or "overwrite"
-# ) -> np.ndarray:
-#     """
-#     Given a list of N×3 arrays, each with columns [x, y, value],
-#     returns a single 2D array of shape `shape` filled with the
-#     values from all lists at their (x,y) coords.
+        prev_sequence_value = next_sequence_value
 
-#     If mode=="sum", overlapping indices are summed;
-#     if mode=="overwrite", later lists simply overwrite earlier.
-#     """
-#     result = np.zeros(shape, dtype=float)
+    ## compare the current sequence value with the previous sequence value
+    if prev_sequence_value <= sequence_value:
+        # get next frame in original sequence
+        current_seq_ref_group_ids = seq_blobs[predicted_seq_index + 1]
+        predicted_frames.append(current_seq_ref_group_ids)
+    else:
+        predicted_frames.append(next_current_seq_ref_group_ids)
+        
+    ## if its the first loop iteration add the predicted frame
+    if prev_sequence_value is None:
+        predicted_frames.append(current_seq_ref_group_ids)
 
-#     for pts in point_lists:
-#         # pts[:,0] = x indices, pts[:,1] = y indices, pts[:,2] = values
-#         xs = pts[:, 0].astype(int)
-#         ys = pts[:, 1].astype(int)
-#         vals = pts[:, 2]
+    prev_sequence_value = sequence_value
+    frame_number += 1
 
-#         if mode == "sum":
-#             # accumulate (works even if xs/ys contain duplicates)
-#             np.add.at(result, (ys, xs), vals)
-#         else:  # overwrite
-#             result[ys, xs] = vals
 
-#     return result
-
-# shape = (64,64)
-# result = merge_point_lists(next_ref_patoms, shape, mode="overwrite")
-
-# print(result)
+print(len(predicted_frames))
 
 en1 = perf_counter()
-print('Time taken for 100 seqs (mins):', round((en1-st1)/60,4))
-
-
-
-
-
-
-# cnt = 0
-# while cnt < 100:
-#     for key, value in vrlv.items():
-#         if value > 0:
-#             print(key, value)
-#             cnt += 1
+print('Time taken to predict 5 frames (mins):', round((en1-st1)/60,4))
