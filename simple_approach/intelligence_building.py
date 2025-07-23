@@ -56,7 +56,7 @@ data = np.load('mnist_test_seq.npy')
 # swap the axes representing the number of frames and number of data samples.
 sequence = np.swapaxes(data, 0, 1)
 # due to memory/processing limitations only use the first 100 of the 10000 total examples.
-n = 2
+n = 20
 sequence = sequence[:n, ...]
 
 ## visual reference linking patoms
