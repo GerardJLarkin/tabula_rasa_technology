@@ -24,6 +24,7 @@ dataset = np.swapaxes(data, 0, 1)
 # We'll pick out 1000 of the 10000 total examples and use those.
 dataset = dataset[:n, ...]
 print('loaded')
+patoms_to_save = []
 #generate patoms from sequences and save to disk
 for i in range(0,n,1):
     print('sequence num:',i)
@@ -36,5 +37,6 @@ for i in range(0,n,1):
             np.save(f'historic_data/patom_{str(i[0,0])}', i)
         del out_patoms
 
+# np.savez(f'historic_data/historic_data.npz', *patoms_to_save)
 end = perf_counter()
 print("Time taken (mins):", (end - start)/60)

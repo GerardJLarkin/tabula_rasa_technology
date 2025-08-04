@@ -1,65 +1,95 @@
 import numpy as np
-import gc
+from functools import lru_cache
+from time import perf_counter
+from multiprocessing import Pool, cpu_count, Manager
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import sys
+import os
 
-def group_arrays(file_paths, compare_func, threshold):
-    """
-    Groups arrays by streaming through disk; only two arrays in memory at once.
+sys.path.append('/home/gerard/Desktop/capstone_project')
+sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
 
-    Parameters
-    ----------
-    file_paths : list of str
-        Paths to .npy files on disk.
-    compare_func : callable
-        Your bespoke function: compare_func(arr1, arr2) -> a numeric “difference”.
-    threshold : float
-        Maximum allowed difference to consider two arrays “similar”.
+from tabula_rasa_technology.simple_approach.reference import create_reference_patom
 
-    Returns
-    -------
-    List[list[str]]
-        A list of groups; each group is a list of file paths.
-    """
-    groups = []         # list of lists of file paths
-    # We won’t keep whole arrays in RAM—just file‐paths for group members.
-    
-    num_patoms_left = len(file_paths)
+@lru_cache(maxsize=10000)
+def load_memmap(path):
+    return np.load(path, mmap_mode='r')
 
-    for path in file_paths:
-        # Memory-map the “new” array (no full load)
-        arr_new = np.load(path, mmap_mode='r')
+def compare_reference_thread(arr_new, reference_array, threshold, compare_func):
+    _, _, score = compare_func(arr_new, reference_array)
+    return score <= threshold
+
+def process_batch(file_batch, threshold, compare_func):
+    local_groups = []
+    local_references = []
+
+    for path in file_batch:
+        arr_new = load_memmap(path)
         placed = False
-        print(num_patoms_left)
-        num_patoms_left -= 1
 
-        # Try to insert into an existing group
-        for grp in groups:
-            # For complete‐link clustering, compare to ALL members in grp.
-            is_similar_to_all = True
-            for member_path in grp:
-                arr_existing = np.load(member_path, mmap_mode='r')
-                id_a, id_b, score = compare_func(arr_new, arr_existing)
-                # as soon as one member is too far, break
-                if score > threshold:
-                    is_similar_to_all = False
-                    # free the memmap of existing before breaking
-                    del arr_existing
-                    gc.collect()
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_index = {
+                executor.submit(compare_reference_thread, arr_new, ref_arr, threshold, compare_func): idx
+                for idx, ref_arr in enumerate(local_references)
+            }
+
+            for future in as_completed(future_to_index):
+                idx = future_to_index[future]
+                if future.result():
+                    local_groups[idx].append(path)
+                    member_arrays = [load_memmap(p) for p in local_groups[idx]]
+                    local_references[idx] = create_reference_patom(member_arrays)
+                    placed = True
                     break
-                # free this memmap before next iteration
-                del arr_existing
-                gc.collect()
 
-            if is_similar_to_all:
-                grp.append(path)
-                placed = True
-                break
-
-        # If it doesn’t fit anywhere, start a new group
         if not placed:
-            groups.append([path])
+            local_groups.append([path])
+            local_references.append(arr_new)
 
-        # free the memmap of the new array
-        del arr_new
-        gc.collect()
+    return local_groups, local_references
 
-    return groups
+def group_arrays_multiprocess(file_paths, compare_func, threshold, batch_size=500):
+    total_start = perf_counter()
+    batches = [file_paths[i:i + batch_size] for i in range(0, len(file_paths), batch_size)]
+
+    with Pool(processes=cpu_count()) as pool:
+        results = pool.starmap(process_batch, [(batch, threshold, compare_func) for batch in batches])
+
+    # Flatten local groups & references
+    groups = []
+    references = []
+    for local_groups, local_references in results:
+        groups.extend(local_groups)
+        references.extend(local_references)
+
+    # Merge similar groups (coarse pass)
+    merged_groups = []
+    merged_references = []
+
+    for idx, ref in enumerate(references):
+        arr_new = ref
+        placed = False
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_index = {
+                executor.submit(compare_reference_thread, arr_new, m_ref, threshold, compare_func): i
+                for i, m_ref in enumerate(merged_references)
+            }
+
+            for future in as_completed(future_to_index):
+                i = future_to_index[future]
+                if future.result():
+                    merged_groups[i].extend(groups[idx])
+                    member_arrays = [load_memmap(p) for p in merged_groups[i]]
+                    merged_references[i] = create_reference_patom(member_arrays)
+                    placed = True
+                    break
+
+        if not placed:
+            merged_groups.append(groups[idx])
+            merged_references.append(ref)
+
+    total_elapsed = (perf_counter() - total_start) / 60
+    print(f'Total clustering complete in {total_elapsed:.1f} mins; formed {len(merged_groups)} groups.')
+
+    return merged_references

@@ -155,7 +155,7 @@ for ix in range(0,n,1):
             best_matches2 = find_best_matches(seq_out_patoms2, ref_patoms, compare)
             
             ref_ids2 = np.array(sorted([i[0] for i in best_matches2])).tobytes()
-            print('ref_ids2',len(ref_ids2))
+            #print('ref_ids2',len(ref_ids2))
             group_dict2[ref_ids2] += 0.0000001
             
             if prev2 is not None:
@@ -175,7 +175,7 @@ for ix in range(0,n,1):
             best_matches3 = find_best_matches(seq_out_patoms3, ref_patoms, compare)
             
             ref_ids3 = np.array(sorted([i[0] for i in best_matches3])).tobytes()
-            print('ref_ids3',len(ref_ids3))
+            #print('ref_ids3',len(ref_ids3))
             group_dict3[ref_ids3] += 0.0000001
             
             if prev3 is not None:
@@ -195,7 +195,7 @@ for ix in range(0,n,1):
             best_matches4 = find_best_matches(seq_out_patoms4, ref_patoms, compare)
             
             ref_ids4 = np.array(sorted([i[0] for i in best_matches4])).tobytes()
-            print('ref_ids4',len(ref_ids4))
+            #print('ref_ids4',len(ref_ids4))
             group_dict4[ref_ids4] += 0.0000001
             
             if prev4 is not None:

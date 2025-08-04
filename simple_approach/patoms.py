@@ -5,7 +5,9 @@ from time import perf_counter, process_time, clock_gettime_ns, CLOCK_REALTIME
 import random
 import string
 
-threshold = 0.0005 #0.00005
+_POOL = Pool(processes=4)
+
+threshold = 0.008 #0.00005
 motion = np.array([[-1, -1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0]])
 
 def snapshot(single_frame_array, i):
@@ -30,24 +32,13 @@ def snapshot(single_frame_array, i):
     arr = orig_array[ia:ib, ja:jb]
     comp =  orig_array[xa:xb, ya:yb]
     truth = abs(comp - arr) <= threshold
+
     true_indices = np.asarray(truth).nonzero()
-    def get_orig_loc_i(x):
-        if indxs[0] == 1:
-            return x+1
-        if indxs[0] == 0:
-            return x
-        if indxs[0] == -1:
-            return x-1
-    def get_orig_loc_j(x):
-        if indxs[1] == 1:
-            return x+1
-        if indxs[1] == 0:
-            return x
-        if indxs[1] == -1:
-            return x-1
-    
-    orig_loc_i = np.apply_along_axis(get_orig_loc_i, 0, true_indices[0])
-    orig_loc_j = np.apply_along_axis(get_orig_loc_j, 0, true_indices[1])
+
+    di, dj = motion[i]
+    orig_loc_i = true_indices[0] + di
+    orig_loc_j = true_indices[1] + dj
+
     orig_vals = orig_array[orig_loc_i, orig_loc_j]
 
     originals = np.column_stack((orig_vals, orig_loc_i, orig_loc_j))
@@ -62,28 +53,17 @@ def snapshot(single_frame_array, i):
     
     return orig_nn
 
+
 def patoms(single_frame_array):
     items = [(single_frame_array, i) for i in range(8)]
     # with multiprocessing
-    with Pool(processes=2) as pool:
+    with Pool(processes=4) as pool:
         res = pool.starmap(snapshot, items)
 
     # combine the outputs of each nearest neighbour function
     combined_output = np.vstack((res))
     combined_output = np.unique(combined_output, axis=0)
     combined_output = combined_output[combined_output[:,0].argsort()]
-
-    ######################################################################
-    ######################################################################
-    ## adding in section to save combined oupput to file for inspection ##
-    ## only saves last file (all others are overwritten)                ##
-    np.savetxt(
-    "inspection_data_combined_output.csv",     # output file
-    combined_output,            # the array to save
-    delimiter=",",  # comma‐separated
-    fmt="%.18e"     # format each float; adjust as needed
-    )
-
     
     # split patoms based on colour threshold
     differences = np.diff(combined_output[:, 0])
@@ -139,3 +119,4 @@ def patoms(single_frame_array):
         norm_patoms.append(patom_array)
     
     return norm_patoms
+

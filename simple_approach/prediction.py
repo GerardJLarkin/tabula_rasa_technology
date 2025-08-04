@@ -193,32 +193,31 @@ def find_best_sequence(
             sim2 = similarity_ratio(new_blob_B, blob_i1)
             avg_sim = (sim1 + sim2) / 2.0
             
-            candidate = (avg_sim, value, key, i+2, blobs)
+            candidate = (avg_sim, value, i+2, blobs)
             # find the 2 ref group id sequential pair windows that are a closest match to the initially submitted ref group ids
             # keep the largest (sim first, then value)
             if (best is None) or (candidate[:2] > best[:2]):
                 best = candidate
         
-    best_sim, best_val, best_key, best_index, best_blobs = best
+    best_sim, best_val, best_index, best_blobs = best
     
     ## extract predicted frame from best identified sequence
     predicted_ref_grp_ids = best_blobs[best_index]
 
-    return best_key, best_val, predicted_ref_grp_ids, best_index
+    return predicted_ref_grp_ids
 
 
 ## new attempt to loop through and predict frames
 max_frames_to_predict = 5
 predicted_frames = [] # bytes objects
-predicted_frames_seq_vals = []
-ref_grp_id1, ref_gr_id2, index = prev_ref_group_ids[-2], prev_ref_group_ids[-1], 0
+ref_grp_id1, ref_gr_id2 = prev_ref_group_ids[-2], prev_ref_group_ids[-1]
 
 # find matching reference sequence once and then use existing dictionaries to get next frames
-closest_matching_key, closest_matching_key_value, next_successive_frame_in_key, index_where_next_successive_frame_found \
-    = find_best_sequence(seq_dict, len_dict, ref_grp_id1, ref_gr_id2)
+inital_predicted_frame = find_best_sequence(seq_dict, len_dict, ref_grp_id1, ref_gr_id2)
 
-predicted_frames.append(next_successive_frame_in_key)
-predicted_frames_seq_vals.append(closest_matching_key_value)
+predicted_frames.append(inital_predicted_frame)
+
+print('len predicted frames',len(predicted_frames))
 
 # get sequence and sequence length dictionaries, find sequence where previously predicted frame is at index zero
 # create dictionary of the original key with the first frame and its value 
@@ -235,21 +234,24 @@ for i in range(5):
             frames.append(chunk)
             offset += count
         sequence_first_frame[key] += [frames[0], value]
-
+        
+        print('pred frame', predicted_frames[-1]==frames[0])
+    
     # find sequence where the first frame is the same as the previously predicted frame
-    matching_first_frames = {k: v[1] for k, v in sequence_first_frame.items() if v[0] == predicted_frames[-1]}
-    # get the sequence that has the highest value (need a tie breaker)
-    max_matching_frst_frame_key= max(matching_first_frames, key=matching_first_frames.get)
-    # get next frame second position in matching key
-    lengths = len_dict[max_matching_frst_frame_key]
-    frames = []
-    offset = 0
-    for count in lengths:
-        chunk = max_matching_frst_frame_key[offset : offset + count]
-        frames.append(chunk)
-        offest += count
-    next_predicted_frame = frames[1]
-    predicted_frames.append(next_predicted_frame)
+    # matching_first_frames = {k: v[1] for k, v in sequence_first_frame.items() if v[0] == predicted_frames[-1]}
+    # # get the sequence that has the highest value (need a tie breaker)
+    # max_matching_first_frame_key= max(matching_first_frames, key=matching_first_frames.get)
+    # # get next frame second position in matching key
+    # lengths = len_dict[max_matching_first_frame_key]
+    # frames = []
+    # offset = 0
+    # for count in lengths:
+    #     chunk = max_matching_first_frame_key[offset : offset + count]
+    #     frames.append(chunk)
+    #     offest += count
+    # next_predicted_frame = frames[1]
+    # predicted_frames.append(next_predicted_frame)
+    # print('2nd len predicted frames', len(predicted_frames))
 
 
 
