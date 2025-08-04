@@ -447,53 +447,41 @@ def segment_fill_histogram(coords: np.ndarray, angular_bins: int = 16) -> np.nda
     hist = hist / hist.sum() if hist.sum() > 0 else hist
     return hist
 
-def compare(shapes: List[np.ndarray], bins: int = 50, angular_bins: int = 16) -> List[List[Union[int, int, float]]]:
-    descriptors = []
-    for shape in shapes:
-        pos = shape[2:, :2]
-        col = shape[2:, 2]
+def compare(array1: np.ndarray, array2: np.ndarray, bins: int = 50, angular_bins: int = 16) -> List[Union[int, int, float]]:
+    pos1 = array1[2:, :2]
+    col1 = array1[2:, 2]
+    pos2 = array2[2:, :2]
+    col2 = array2[2:, 2]
 
-        #fill_count = pos.shape[0]
-        radial_hist = compute_radial_hist(pos, bins)
-        radial_colour_hist = compute_radial_colour_hist(pos, col, bins)
-        segment_hist = segment_fill_histogram(pos, angular_bins)
+    radial_hist1 = compute_radial_hist(pos1, bins)
+    radial_hist2 = compute_radial_hist(pos2, bins)
 
-        descriptors.append({
-            'id': shape[0, 0],
-            #'fill_count': fill_count,
-            'radial_hist': radial_hist,
-            'radial_colour_hist': radial_colour_hist,
-            'segment_hist': segment_hist
-        })
+    radial_colour_hist1 = compute_radial_colour_hist(pos1, col1, bins)
+    radial_colour_hist2 = compute_radial_colour_hist(pos2, col2, bins)
 
-    comparisons = []
-    for i in range(len(descriptors)):
-        for j in range(i + 1, len(descriptors)):
-            desc1 = descriptors[i]
-            desc2 = descriptors[j]
+    segment_hist1 = segment_fill_histogram(pos1, angular_bins)
+    segment_hist2 = segment_fill_histogram(pos2, angular_bins)
 
-            # Fill similarity
-            # m, n = desc1['fill_count'], desc2['fill_count']
-            # fill_diff = abs(m - n) / ((m + n) / 2)
-            # fill_sim = min(fill_diff, 1.0)
+    # Radial Position Similarity
+    radial_sim = 1 - np.minimum(radial_hist1, radial_hist2).sum()
 
-            # Radial Position Similarity
-            radial_sim = np.minimum(desc1['radial_hist'], desc2['radial_hist']).sum()
+    # Radial Colour Similarity
+    radial_colour_sim = np.abs(radial_colour_hist1 - radial_colour_hist2).mean()
 
-            # Radial Colour Similarity
-            diff = np.abs(desc1['radial_colour_hist'] - desc2['radial_colour_hist']).mean()
-            radial_colour_sim = 1.0 - diff
+    # Segment Fill Similarity
+    segment_fill_sim = np.abs(segment_hist1 - segment_hist2).mean()
 
-            # Segment Fill Similarity
-            segment_diff = np.abs(desc1['segment_hist'] - desc2['segment_hist']).mean()
-            segment_fill_sim = 1.0 - segment_diff
+    # weighted combination
+    if (radial_sim <= 0.20) and (segment_fill_sim <= 0.20):
+        score = 0.20
+    else:
+        score = (radial_sim * 0.1) + (radial_colour_sim * 0.6) + (segment_fill_sim * 0.3)
 
-            # Weighted Score
-            score = (radial_sim * 0.1) + (radial_colour_sim * 0.6) + (segment_fill_sim * 0.3) # (fill_sim * 0.2) +
+    return [array1[0,0], array2[0,0], score]
 
-            comparisons.append([desc1['id'], desc2['id'], score])
+    #         comparisons.append([desc1['id'], desc2['id'], score])
 
-    return comparisons
+    # return comparisons
 
 # Usage example:
 # results = compare_shapes_batch([shape_array1, shape_array2, shape_array3])

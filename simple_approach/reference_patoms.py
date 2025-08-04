@@ -21,6 +21,7 @@ def main():
     os.makedirs(output, exist_ok=True)
 
     file_paths = glob.glob(os.path.join(folder, '*.npy'))
+    #file_paths = file_paths[:20]
     sim_threshold = 0.20
 
     reference_patoms = group_arrays_multiprocess(file_paths, compare, sim_threshold)
