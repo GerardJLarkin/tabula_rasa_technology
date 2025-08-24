@@ -79,12 +79,9 @@ sequence = np.swapaxes(data, 0, 1)
 sequence = sequence[:50, ...]
 
 ## visual reference linking patoms
-def find_best_matches(
-    arrays: List[np.ndarray],
-    references: List[np.ndarray],
-    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[str, str, float]]) -> Set[Tuple[str, float, float, float]]:
+def find_best_matches(arrays, references, compare_func):
     
-    matches: Set[Tuple[str, float, float, float]] = set()
+    matches = set()
     for arr in arrays:
         best_score = float('inf')
         best_ref_id: str = None

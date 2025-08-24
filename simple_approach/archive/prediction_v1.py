@@ -85,26 +85,23 @@ with open(root+'/sequence_dict.pkl', 'rb') as s:
     seq_dict = pickle.load(s)
 
 ## visual reference linking patoms
-def find_best_matches(
-    arrays: List[np.ndarray],
-    references: List[np.ndarray],
-    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[str, str, float]]) -> Set[Tuple[str, float, float, float]]:
+def find_best_matches(arrays, references, compare_func):
     
-    matches: Set[Tuple[str, float, float, float]] = set()
-    for arr in arrays:
+    matches = list()
+    for ix, arr in enumerate(arrays):
+        #print('patom num:', ix, 'patom id', arr[0,0])
+        segment = arr[0,8]
+        cent_x = arr[0,6]
+        cent_y = arr[0,7]
         best_score = float('inf')
-        best_ref_id: str = None
+        best_ref: str = None
         for ref in references:
             id1, id2, score = compare_func(arr, ref)
             if score < best_score:
                 best_score = score
-                best_ref_id = id2
-                x_cent = arr[0,1] 
-                y_cent = arr[0,2]
-                seg = arr[0,3]
-                best_ref = (best_ref_id, x_cent, y_cent, seg)
-        matches.add(best_ref)
-    
+                best_ref = id2
+                #print('patom id',id1,'best matched ref patom id',best_ref, 'score',score)
+        matches.append([best_ref, segment, cent_x, cent_y])
     return matches
 
 start_prediction = []

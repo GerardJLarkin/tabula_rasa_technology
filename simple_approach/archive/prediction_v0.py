@@ -49,12 +49,9 @@ with open(root+'/vrlv.pkl', 'rb') as fv:
     vrlv = pickle.load(fv)
 
 ## visual reference linking patoms
-def find_best_matches(
-    arrays: List[np.ndarray],
-    references: List[np.ndarray],
-    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[str, str, float]]) -> List[List]:
+def find_best_matches(arrays, references, compare_func):
     
-    matches: List[List] = list()
+    matches = list()
     for ix, arr in enumerate(arrays):
         #print('patom num:', ix, 'patom id', arr[0,0])
         segment = arr[0,8]

@@ -1,4 +1,13 @@
+# script to test the output of the patom generation script
 import numpy as np
+
+import sys
+
+## append filepath to allow files to be called from within project folder
+sys.path.append('/home/gerard/Desktop/capstone_project')
+sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
+
+from tabula_rasa_technology.simple_approach.unnormalise import unnormalise_xy
 
 # nearest neighbour offsets
 motion = np.array([[-1,  1], [ 0,  1], [ 1,  1],
@@ -169,3 +178,136 @@ def patoms(single_frame_array, threshold = threshold_val):
         out.append(patom)
 
     return out
+
+###########################################################################
+from operator import itemgetter
+from time import perf_counter, process_time, clock_gettime_ns, CLOCK_REALTIME
+import random
+import string
+
+# choose image shape (must be large enough to include all x,y)
+shape = (64, 64)
+
+# number of sequences to import
+n = 1
+# Using the same input dataset as per the compartor CNN-LSTM model
+data = np.load('mnist_test_seq.npy')
+# Swap the axes representing the number of frames and number of data samples.
+dataset = np.swapaxes(data, 0, 1)
+# We'll pick out 1000 of the 10000 total examples and use those.
+dataset = dataset[:n, ...]
+print('loaded')
+patoms_to_save = []
+#generate patoms from sequences and save to disk
+
+sequence = dataset[0]
+original_frame = sequence[0]; flat = np.unique(original_frame.flatten()).tolist(); print('orig frame distinct vals',len(flat))
+frame = sequence[0]
+out_patoms = patoms(frame); print('num_patoms',len(out_patoms))
+
+pixel_values = [i[:,3] for i in out_patoms]
+print(len(pixel_values[0]))
+
+unnorm_list = []
+for i in out_patoms:
+    #print(i[2:4,:])
+    unnorm = unnormalise_xy(i)
+    #print('norm', i[2:4,[4,5]], 'unnorm', unnorm[2:4,:])
+    error = np.mean(i[2:,:2] != unnorm[2:,:2])
+    #print('val error', error)
+    diff_mask = i[2:,:2] != unnorm[2:,:2]
+    diff_indices = np.argwhere(diff_mask)
+    for idx in diff_indices:
+        val_a = i[2:,:2][tuple(idx)]
+        val_b = unnorm[2:,:2][tuple(idx)]
+        diff = val_a - val_b
+        print(f"Index {tuple(idx)}: A={val_a}, B={val_b}, Diff={diff}")
+    unnorm_list.append(unnorm)
+
+# check for duplicates in the output of the list of patoms
+patoms_stacked = np.vstack([i[2:,:3] for i in out_patoms])
+print('stacked patoms before de-dup', patoms_stacked.shape) # re collected patoms do not add back up to original frame size, why?
+# remove duplicates
+patoms_stacked = np.unique(patoms_stacked, axis=0)
+print('stacked patoms after de-dup',patoms_stacked.shape) # re collected patoms do not add back up to original frame size, why?
+
+# get unique x/y values in patoms stacked
+x_vals = patoms_stacked[:,0]; print('pat stack unq x vals', np.unique(x_vals).tolist())
+
+# check for duplicates in the output of the list of un-normalised patoms
+unnorm_stacked = np.vstack([i[2:,:3] for i in unnorm_list])
+print('stacked unnorm before de-dup', unnorm_stacked.shape) # re collected patoms do not add back up to original frame size, why?
+# remove duplicates
+unnorm_stacked = np.unique(unnorm_stacked, axis=0)
+print('stacked unnorm after de-dup',unnorm_stacked.shape) # re collected patoms do not add back up to original frame size, why?
+
+
+# recombine stacked patoms to check against original frame
+h, w = shape
+
+y = unnorm_stacked[:, 0].astype(np.int64, copy=False);y_list = np.unique(y).tolist(); print('patom stacked distinct vals', (y_list))
+x = unnorm_stacked[:, 1].astype(np.int64, copy=False);x_list = np.unique(x).tolist(); print('patom stacked distinct vals', (x_list))
+v = unnorm_stacked[:, 2]; print(v.shape);val_list = np.unique(v).tolist(); print('patom stacked distinct vals', (val_list))
+
+fill_value = np.mean(original_frame)
+
+out = np.full(shape, 0, dtype=int)
+out[y, x] = v  # last occurrence wins due to NumPy assignment semantics
+print((out.shape))
+
+unique_out = np.unique(out).tolist()
+print(unique_out)
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+img_patom = out
+img_orig = original_frame
+
+images = [original_frame, out]
+
+cmap = 'gray'
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4), constrained_layout=True)
+
+im = None
+for ax, img in zip(axes, images):
+    im = ax.imshow(img, cmap=cmap)
+    ax.axis('off')
+
+fig.suptitle('Orig Frame vs Recreated Frame', fontsize=15)
+plt.show()
+plt.imsave('patom_test.png', img, cmap='gray')
+
+
+# print(out[:5,:5])
+# print(original_frame[:5,:5])
+orig_frame_patoms_match = np.mean(out != original_frame)
+print('% mismatch with zeros',orig_frame_patoms_match)
+# remove zeros and calculate mistmatch
+out_nonzero = out.copy().astype('float32')
+out_nonzero[out_nonzero == 0] = float(np.nan)
+orig_nonzero = original_frame.copy().astype('float32')
+orig_nonzero[orig_nonzero == 0] = float(np.nan)
+
+mask = ~np.isnan(out_nonzero) & ~np.isnan(orig_nonzero)
+out_nonzero = out_nonzero[mask]
+orig_nonzero = orig_nonzero[mask]
+
+orig_frame_patoms_match_nonzero = np.mean(out_nonzero != orig_nonzero)
+print('% mismatch without zeros',orig_frame_patoms_match_nonzero)
+diff_mask = out != original_frame
+diff_indices = np.argwhere(diff_mask)
+
+print('orig nonzero', orig_nonzero.shape)
+print('out nonzero', out_nonzero.shape)
+diffs = []
+
+for idx in diff_indices:
+    val_a = out[tuple(idx)]
+    val_b = original_frame[tuple(idx)]
+    diff = val_a - val_b
+    #print(f"Index {tuple(idx)}: A={val_a}, B={val_b}, Diff={diff}")
+    diffs.append(diff)
+
+print('% mismatch nonzero:', 1 - ((orig_nonzero.shape[-1] - len(diffs)) / orig_nonzero.shape[-1]) )

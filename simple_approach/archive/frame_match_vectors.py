@@ -16,12 +16,9 @@ from tabula_rasa_technology.simple_approach.compare import compare
 from tabula_rasa_technology.simple_approach.patoms import patoms
 
 # find best matches
-def find_best_matches(
-    arrays: List[np.ndarray],
-    references: List[np.ndarray],
-    compare_func: Callable[[np.ndarray, np.ndarray], Tuple[float, float, float]]) -> Set[Tuple[float, float, float, float]]:
+def find_best_matches(arrays,references,compare_func):
     
-    matches: Set[Tuple[float, float, float, float]] = set()
+    matches = set()
     for arr in arrays:
         best_score = float('inf')
         best_ref_id: float = None
@@ -45,7 +42,7 @@ vrlp0 = defaultdict(float)
 vrlv0 = defaultdict(float)
 
 # start function here, input is sequence index and frame, output is list of ref ids (byte array), vrlp keys (byte array), vrlv keys (byte array)
-def frame_match_vectors(ind : int, frame: np.ndarray) -> List[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
+def frame_match_vectors(ind, frame):
     pass
 
 st1 = perf_counter()

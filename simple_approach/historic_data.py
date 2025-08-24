@@ -16,7 +16,7 @@ sys.path.append('/home/gerard/Desktop/capstone_project/simple_approach')
 from tabula_rasa_technology.simple_approach.patoms import patoms
 
 # number of sequences to import
-n = 100
+n = 25
 # Using the same input dataset as per the compartor CNN-LSTM model
 data = np.load('mnist_test_seq.npy')
 # Swap the axes representing the number of frames and number of data samples.
@@ -30,7 +30,7 @@ for i in range(0,n,1):
     print('sequence num:',i)
     sequence = dataset[i]
     for j in range(0,20,1):
-        frame = sequence[j] / 255.00
+        frame = sequence[j]
         out_patoms = patoms(frame)
         for i in out_patoms:
             # save patoms to disk
