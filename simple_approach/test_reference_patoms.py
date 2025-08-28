@@ -73,10 +73,10 @@ data = np.load('mnist_test_seq.npy')
 # Swap the axes representing the number of frames and number of data samples.
 dataset = np.swapaxes(data, 0, 1)
 # We'll pick out 1000 of the 10000 total examples and use those.
-dataset = dataset[9325:9326, ...]
+dataset = dataset[9997:9998, ...]
 # print('loaded')
 
-original_frame = dataset[0][10]
+original_frame = dataset[0][0]
 
 results = best_matches_for_frame(original_frame)
 best_ref_matches = results[0]
@@ -245,20 +245,36 @@ plt.show()
 #plt.imsave('ref_test.png', im, cmap='gray')
 
 
-# print(out[:5,:5])
+## print(out[:5,:5])
 # print(original_frame[:5,:5])
 orig_frame_patoms_match = np.mean(out != original_frame)
-print('perc diff:', orig_frame_patoms_match)
+print('% mismatch with zeros',orig_frame_patoms_match)
+# remove zeros and calculate mistmatch
+out_nonzero = out.copy().astype('float32')
+out_nonzero[out_nonzero == 0] = float(np.nan)
+orig_nonzero = original_frame.copy().astype('float32')
+orig_nonzero[orig_nonzero == 0] = float(np.nan)
+
+mask = ~np.isnan(out_nonzero) & ~np.isnan(orig_nonzero)
+out_nonzero = out_nonzero[mask]
+orig_nonzero = orig_nonzero[mask]
+
+orig_frame_patoms_match_nonzero = np.mean(out_nonzero != orig_nonzero)
+print('% mismatch without zeros',orig_frame_patoms_match_nonzero)
 diff_mask = out != original_frame
 diff_indices = np.argwhere(diff_mask)
+
+print('orig nonzero', orig_nonzero.shape)
+print('out nonzero', out_nonzero.shape)
+diffs = []
+
 for idx in diff_indices:
     val_a = out[tuple(idx)]
     val_b = original_frame[tuple(idx)]
     diff = val_a - val_b
-    # print(f"Index {tuple(idx)}: A={val_a}, B={val_b}, Diff={diff}")
+    #print(f"Index {tuple(idx)}: A={val_a}, B={val_b}, Diff={diff}")
+    diffs.append(diff)
 
-matches = np.sum(out == original_frame)
-total_elements = out.size
-print('perc match:', matches/total_elements)
+print('% mismatch nonzero:', 1 - ((original_frame.shape[-1] - len(diffs)) / original_frame.shape[-1]) )
 end = perf_counter()
 print("Time taken (mins):", (end - start)/60)

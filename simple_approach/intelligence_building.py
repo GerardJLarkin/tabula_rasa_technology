@@ -69,7 +69,7 @@ for ix in range(0,n,1):
         
         ref_ids_list = []
         ref_ids_len_list = []
-        for k in [4, 3, 2, 1, 0]:
+        for k in [4, 3, 2, 1]:
             frame_idx = j - k
             print('frame look back', frame_idx, flush=True)
             if frame_idx not in cache:
